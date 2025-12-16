@@ -12,7 +12,7 @@
     "mqtt": "^4.3.7"
   },
   "devDependencies": {
-    "@netlify/plugin-lighthouse": "^5.0.1"
+    "@netlify/plugin-lighthouse": "^6.0.4"
   },
   "engines": {
     "node": "18.x"
