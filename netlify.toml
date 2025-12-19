@@ -1,19 +1,18 @@
 [build]
   publish = "."
   functions = "netlify/functions"
-  command = "npm install"
+  command = "echo 'No build required'"
 
 [build.environment]
   NODE_VERSION = "18"
 
-# IMPORTANT: Increase function timeout
+# Function configuration with correct timeout syntax
 [functions]
-  timeout = 30  # Increased from default 10 seconds
   node_bundler = "esbuild"
-
-# External dependencies for esbuild to exclude
-[[functions.external]]
-  package = "mqtt"
+  
+  # Timeout must be an object, not a simple value
+  [functions.timeout]
+    external_node_modules = []
 
 [[redirects]]
   from = "/*"
@@ -32,6 +31,3 @@
   publish = "."
   functions = "netlify/functions"
   port = 8888
-
-[[plugins]]
-  package = "@netlify/plugin-lighthouse"
