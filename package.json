@@ -1,6 +1,6 @@
 {
   "name": "automated-bell-system",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Automated School Bell System with ESP32 and Cloud",
   "main": "index.js",
   "scripts": {
@@ -9,10 +9,11 @@
     "test": "echo 'No tests specified'"
   },
   "dependencies": {
-    "mqtt": "^4.3.7"
+    "mqtt": "^5.0.3",
+    "netlify-lambda": "^2.0.16"
   },
   "devDependencies": {
-    "@netlify/plugin-lighthouse": "^5.0.1"
+    "@netlify/plugin-lighthouse": "^6.0.4"
   },
   "engines": {
     "node": "18.x"

@@ -1,10 +1,19 @@
 [build]
   publish = "."
   functions = "netlify/functions"
-  command = "npm run build"
+  command = "npm install"
 
 [build.environment]
   NODE_VERSION = "18"
+
+# IMPORTANT: Increase function timeout
+[functions]
+  timeout = 30  # Increased from default 10 seconds
+  node_bundler = "esbuild"
+
+# Required for MQTT library
+[functions.node_bundler]
+  esbuild_flags = "--external:mqtt"
 
 [[redirects]]
   from = "/*"
@@ -23,6 +32,3 @@
   publish = "."
   functions = "netlify/functions"
   port = 8888
-
-[[plugins]]
-  package = "@netlify/plugin-lighthouse"
