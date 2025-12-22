@@ -496,3 +496,52 @@ main {
         grid-template-columns: 1fr;
     }
 }
+
+/* Time Sync Status */
+.time-sync-status {
+  background: rgba(76, 201, 240, 0.1);
+  padding: 10px 15px;
+  border-radius: var(--border-radius);
+  margin: 15px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+}
+
+.time-sync-status i {
+  color: var(--primary-color);
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.small-btn {
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  margin-left: auto;
+}
+
+/* Status indicators */
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.status-indicator.synced {
+  background: rgba(76, 201, 240, 0.2);
+  color: var(--success-color);
+}
+
+.status-indicator.pending {
+  background: rgba(248, 150, 30, 0.2);
+  color: var(--warning-color);
+}
