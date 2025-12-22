@@ -207,7 +207,7 @@ async function savePeriod(e) {
 
 async function sendScheduleToESP32() {
     try {
-        const response = await fetch(`${CONFIG.API_URL}/updateSchedule`, {
+        const response = await fetch(`${CONFIG.API_URL}/scheduleQueue`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

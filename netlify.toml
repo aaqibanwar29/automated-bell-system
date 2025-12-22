@@ -1,31 +1,31 @@
 [build]
   publish = "."
   functions = "netlify/functions"
-  command = "echo 'No build required'"
-
-[build.environment]
-  NODE_VERSION = "18"
-
-# Function configuration with correct timeout syntax
-[functions]
-  node_bundler = "esbuild"
-  
-  # Timeout must be an object, not a simple value
-  [functions.timeout]
-    external_node_modules = []
 
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
 
-[[headers]]
-  for = "/*"
-  [headers.values]
-    X-Frame-Options = "DENY"
-    X-XSS-Protection = "1; mode=block"
-    X-Content-Type-Options = "nosniff"
-    Referrer-Policy = "strict-origin-when-cross-origin"
+# CRON Jobs Configuration
+[functions]
+  node_bundler = "esbuild"
+
+[[functions.schedule]]
+  cron = "*/1 * * * *"  # Every minute
+  function = "cron-timeSync"
+
+# Environment Variables
+[build.environment]
+  NODE_VERSION = "18"
+  MONGODB_URI = "mongodb+srv://aaqibanwar29_db_user:aaqib29-MongoDB@cluster1.j46h1vl.mongodb.net/?appName=Cluster1"
+
+[context.production.environment]
+  MQTT_HOST = "82656346fb9d4e13bd30d32d89e1185d.s1.eu.hivemq.cloud"
+  MQTT_PORT = "8883"
+  MQTT_USERNAME = "AaqibAnwar29"
+  MQTT_PASSWORD = "aaqibanwar29@HiveMQ"
+  MONGODB_URI = "mongodb+srv://aaqibanwar29_db_user:aaqib29-MongoDB@cluster1.j46h1vl.mongodb.net/?appName=Cluster1"
 
 [dev]
   publish = "."
