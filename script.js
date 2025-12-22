@@ -16,7 +16,7 @@ let schedule = [];
 let user = null;
 
 // Initialize the application
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', function() {
     initNetlifyIdentity();
     setupEventListeners();
     updateCurrentTime();
@@ -31,11 +31,11 @@ function initNetlifyIdentity() {
                 handleLogin(user);
             }
         });
-
+        
         window.netlifyIdentity.on('login', handleLogin);
         window.netlifyIdentity.on('logout', handleLogout);
     }
-
+    
     // Check if user is already logged in
     const currentUser = netlifyIdentity.currentUser();
     if (currentUser) {
@@ -49,7 +49,6 @@ function handleLogin(userData) {
     document.getElementById('dashboard').style.display = 'block';
     connectToMQTT();
     loadSchedule();
-    startTimeSync();
 }
 
 function handleLogout() {
@@ -59,8 +58,6 @@ function handleLogout() {
     if (mqttClient && mqttClient.connected) {
         mqttClient.end();
     }
-
-    stopTimeSync();
 }
 
 // Event Listeners
@@ -69,20 +66,20 @@ function setupEventListeners() {
     document.getElementById('googleLogin')?.addEventListener('click', () => {
         netlifyIdentity.open('login');
     });
-
+    
     // Logout Button
     document.getElementById('logoutBtn')?.addEventListener('click', () => {
         netlifyIdentity.logout();
     });
-
+    
     // Add Period Button
     document.getElementById('addPeriodBtn')?.addEventListener('click', () => {
         document.getElementById('addPeriodModal').style.display = 'flex';
     });
-
+    
     // Ring Now Button
     document.getElementById('ringNowBtn')?.addEventListener('click', ringBellNow);
-
+    
     // Modal Close Buttons
     document.querySelectorAll('.close, .cancel-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -90,10 +87,10 @@ function setupEventListeners() {
             document.getElementById('periodForm').reset();
         });
     });
-
+    
     // Period Form Submission
     document.getElementById('periodForm')?.addEventListener('submit', savePeriod);
-
+    
     // Close modal when clicking outside
     window.addEventListener('click', (e) => {
         const modal = document.getElementById('addPeriodModal');
@@ -102,28 +99,16 @@ function setupEventListeners() {
             document.getElementById('periodForm').reset();
         }
     });
-
-    // Time sync button (optional)
-    const syncBtn = document.getElementById('syncTimeBtn');
-    if (syncBtn) {
-        syncBtn.addEventListener('click', syncTimeToESP32);
-    }
-
-    // Start auto-sync when dashboard loads
-    const dashboard = document.getElementById('dashboard');
-    if (dashboard.style.display !== 'none') {
-        startTimeSync();
-    }
 }
 
 // MQTT Connection
 function connectToMQTT() {
     // For production, use a proper MQTT library with WebSocket support
     // This is a simplified version - in real implementation, use Paho MQTT or similar
-
+    
     console.log('Connecting to MQTT broker...');
     updateConnectionStatus('connecting');
-
+    
     // Simulated connection - replace with actual MQTT implementation
     setTimeout(() => {
         updateConnectionStatus('connected');
@@ -137,11 +122,11 @@ function simulateMQTTConnection() {
         // Simulate status updates
         const statuses = ['online', 'offline', 'bell_rang'];
         const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
-
+        
         if (randomStatus === 'bell_rang') {
             updateLastBellTime();
         }
-
+        
         updateMQTTStatus(randomStatus);
     }, 10000);
 }
@@ -165,7 +150,7 @@ async function loadSchedule() {
 function renderSchedule() {
     const scheduleList = document.getElementById('scheduleList');
     scheduleList.innerHTML = '';
-
+    
     schedule.forEach((period, index) => {
         const periodElement = document.createElement('div');
         periodElement.className = 'schedule-item';
@@ -192,31 +177,31 @@ function renderSchedule() {
 
 async function savePeriod(e) {
     e.preventDefault();
-
+    
     const period = {
         name: document.getElementById('periodName').value,
         startTime: document.getElementById('startTime').value,
         endTime: document.getElementById('endTime').value,
         duration: parseInt(document.getElementById('bellDuration').value)
     };
-
+    
     schedule.push(period);
-
+    
     // Save to localStorage (replace with API call in production)
     localStorage.setItem('bellSchedule', JSON.stringify(schedule));
-
+    
     // Send to ESP32 via MQTT
     await sendScheduleToESP32();
-
+    
     // Update UI
     renderSchedule();
     updatePeriodsCount();
     calculateNextBell();
-
+    
     // Close modal and reset form
     document.getElementById('addPeriodModal').style.display = 'none';
     document.getElementById('periodForm').reset();
-
+    
     showNotification('Period saved successfully!', 'success');
 }
 
@@ -230,9 +215,9 @@ async function sendScheduleToESP32() {
             },
             body: JSON.stringify({ periods: schedule })
         });
-
+        
         if (!response.ok) throw new Error('Failed to send schedule');
-
+        
         console.log('Schedule sent to ESP32');
     } catch (error) {
         console.error('Error sending schedule:', error);
@@ -242,7 +227,7 @@ async function sendScheduleToESP32() {
 
 async function ringBellNow() {
     const duration = parseInt(document.getElementById('manualDuration').value);
-
+    
     try {
         const response = await fetch(`${CONFIG.API_URL}/ringNow`, {
             method: 'POST',
@@ -252,9 +237,9 @@ async function ringBellNow() {
             },
             body: JSON.stringify({ duration })
         });
-
+        
         if (!response.ok) throw new Error('Failed to ring bell');
-
+        
         updateLastBellTime();
         showNotification('Bell rung successfully!', 'success');
     } catch (error) {
@@ -278,8 +263,8 @@ function updateCurrentTime() {
 function updateConnectionStatus(status) {
     const statusElement = document.getElementById('connectionStatus');
     const dotElement = document.querySelector('.status-dot');
-
-    switch (status) {
+    
+    switch(status) {
         case 'connected':
             statusElement.textContent = 'Connected';
             dotElement.className = 'status-dot online';
@@ -319,16 +304,16 @@ function calculateNextBell() {
         document.getElementById('nextBellTime').textContent = 'No schedule';
         return;
     }
-
+    
     const now = new Date();
     const currentTime = now.getHours() * 60 + now.getMinutes();
-
+    
     let nextBell = null;
-
+    
     for (const period of schedule) {
         const [startHour, startMinute] = period.startTime.split(':').map(Number);
         const startTime = startHour * 60 + startMinute;
-
+        
         if (startTime > currentTime) {
             if (!nextBell || startTime < nextBell.startTime) {
                 nextBell = {
@@ -338,7 +323,7 @@ function calculateNextBell() {
             }
         }
     }
-
+    
     if (nextBell) {
         document.getElementById('nextBellTime').textContent = nextBell.time;
     } else {
@@ -348,15 +333,15 @@ function calculateNextBell() {
 
 function editPeriod(index) {
     const period = schedule[index];
-
+    
     document.getElementById('periodName').value = period.name || '';
     document.getElementById('startTime').value = period.startTime;
     document.getElementById('endTime').value = period.endTime;
     document.getElementById('bellDuration').value = period.duration;
-
+    
     // Remove the old period
     schedule.splice(index, 1);
-
+    
     document.getElementById('addPeriodModal').style.display = 'flex';
 }
 
@@ -376,7 +361,7 @@ function showNotification(message, type = 'info') {
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
     notification.textContent = message;
-
+    
     // Add styles
     notification.style.cssText = `
         position: fixed;
@@ -389,9 +374,9 @@ function showNotification(message, type = 'info') {
         z-index: 10000;
         animation: slideIn 0.3s ease;
     `;
-
+    
     document.body.appendChild(notification);
-
+    
     // Remove after 3 seconds
     setTimeout(() => {
         notification.style.animation = 'slideOut 0.3s ease';
@@ -415,94 +400,3 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
-
-// ==============================================
-// TIME SYNC SYSTEM
-// ==============================================
-
-// Auto-sync time every 2 minutes
-let timeSyncInterval = null;
-
-function startTimeSync() {
-    console.log('🔄 Starting automatic time sync (every 2 minutes)');
-
-    // Initial sync
-    syncTimeToESP32();
-
-    // Set up interval
-    if (timeSyncInterval) clearInterval(timeSyncInterval);
-    timeSyncInterval = setInterval(syncTimeToESP32, 120000); // 2 minutes
-
-    // Also sync when user adds/edits schedule
-    document.addEventListener('scheduleUpdated', syncTimeToESP32);
-}
-
-function stopTimeSync() {
-    if (timeSyncInterval) {
-        clearInterval(timeSyncInterval);
-        timeSyncInterval = null;
-    }
-    console.log('⏹️ Stopped time sync');
-}
-
-async function syncTimeToESP32() {
-    if (!user) {
-        console.log('⏰ Time sync skipped: User not logged in');
-        return;
-    }
-
-    try {
-        const now = new Date();
-        const timeData = {
-            hour: now.getHours(),
-            minute: now.getMinutes(),
-            second: now.getSeconds()
-        };
-
-        console.log('🔄 Syncing time to ESP32:',
-            `${timeData.hour.toString().padStart(2, '0')}:${timeData.minute.toString().padStart(2, '0')}:${timeData.second.toString().padStart(2, '0')}`);
-
-        const response = await fetch(`${CONFIG.API_URL}/syncTime`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${user.token.access_token}`
-            },
-            body: JSON.stringify(timeData)
-        });
-
-        if (!response.ok) throw new Error('Time sync failed');
-
-        const result = await response.json();
-        console.log('✅ Time sync successful:', result.time);
-
-        // Update UI
-        updateLastSyncTime();
-
-    } catch (error) {
-        console.error('❌ Time sync error:', error);
-        // Don't show notification to avoid spam
-    }
-}
-
-function updateLastSyncTime() {
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString('en-US', {
-        hour12: true,
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-    });
-
-    // Update UI if you have an element for this
-    const syncElement = document.getElementById('lastSyncTime');
-    if (syncElement) {
-        syncElement.textContent = `Last sync: ${timeStr}`;
-        syncElement.style.color = '#4cc9f0';
-
-        // Reset color after 10 seconds
-        setTimeout(() => {
-            syncElement.style.color = '';
-        }, 10000);
-    }
-}
