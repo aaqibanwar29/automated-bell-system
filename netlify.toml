@@ -11,9 +11,8 @@
 [functions]
   node_bundler = "esbuild"
 
-[[functions.schedule]]
-  cron = "*/1 * * * *"  # Every minute
-  function = "cron-timeSync"
+[functions."cron-timeSync"]
+schedule = "*/1 * * * *" # Every minute
 
 # Environment Variables
 [build.environment]
