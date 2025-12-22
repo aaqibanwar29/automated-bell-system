@@ -1,5 +1,5 @@
 const mqtt = require('mqtt');
-const { MongoClient } = require('mongodb');
+import { MongoClient } from "mongodb";
 
 const mqttOptions = {
   host: process.env.MQTT_HOST,

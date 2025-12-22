@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "mqtt": "^5.0.3",
-    "netlify-lambda": "^2.0.16"
+    "netlify-lambda": "^2.0.16",
+    "mongodb": "^6.3.0"
   },
   "devDependencies": {
     "@netlify/plugin-lighthouse": "^6.0.4"
