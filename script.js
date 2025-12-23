@@ -213,15 +213,45 @@ async function sendScheduleToESP32() {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${user.token.access_token}`
             },
-            body: JSON.stringify({ periods: schedule })
+            body: JSON.stringify({ 
+                periods: schedule,
+                timestamp: new Date().toISOString(),
+                type: 'full_schedule_update'
+            })
         });
         
-        if (!response.ok) throw new Error('Failed to send schedule');
+        const result = await response.json();
         
-        console.log('Schedule sent to ESP32');
+        if (!response.ok) throw new Error(result.error || 'Failed to send schedule');
+        
+        console.log('✅ Schedule sent and stored:', result);
+        showNotification(`Schedule sent (${schedule.length} periods)`, 'success');
+        
     } catch (error) {
         console.error('Error sending schedule:', error);
         showNotification('Failed to send schedule to ESP32', 'error');
+    }
+}
+
+async function forceScheduleSync() {
+    try {
+        const response = await fetch(`${CONFIG.API_URL}/getSchedule`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${user.token.access_token}`
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) throw new Error(result.error || 'Failed to sync schedule');
+        
+        console.log('✅ Schedule synced from server:', result);
+        showNotification(`Schedule synced (${result.count} periods)`, 'success');
+        
+    } catch (error) {
+        console.error('Error syncing schedule:', error);
+        showNotification('Failed to sync schedule', 'error');
     }
 }
 
