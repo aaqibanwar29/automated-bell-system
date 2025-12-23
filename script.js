@@ -220,16 +220,31 @@ async function sendScheduleToESP32() {
             })
         });
         
+        // Check specifically for 401 Unauthorized or 403 Forbidden status
+        if (response.status === 401 || response.status === 403) {
+            console.warn('Authentication token expired or invalid. Forcing user logout.');
+            showNotification('Your session has expired. Please log in again.', 'error');
+            // Trigger a logout which will reset the UI to the login screen
+            netlifyIdentity.logout();
+            return; // Stop further execution
+        }
+        
+        // Handle other non-OK responses (like 500 errors)
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Server responded with ${response.status}: ${errorText}`);
+        }
+        
+        // If response is OK, process as before
         const result = await response.json();
-        
-        if (!response.ok) throw new Error(result.error || 'Failed to send schedule');
-        
         console.log('✅ Schedule sent and stored:', result);
         showNotification(`Schedule sent (${schedule.length} periods)`, 'success');
         
     } catch (error) {
         console.error('Error sending schedule:', error);
-        showNotification('Failed to send schedule to ESP32', 'error');
+        // Show a more specific error message
+        const message = error.message.includes('status') ? error.message : 'Failed to send schedule to server. Please check your connection and try again.';
+        showNotification(message, 'error');
     }
 }
 
