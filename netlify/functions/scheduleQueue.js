@@ -1,5 +1,6 @@
 const mqtt = require('mqtt');
 const { MongoClient } = require('mongodb');
+const { MongoClient, ObjectId } = require('mongodb');
 
 const mqttOptions = {
   host: process.env.MQTT_HOST,
@@ -222,7 +223,18 @@ exports.handler = async function (event, context) {
     }
 
     const userId = context.clientContext.user.email;
-    const { periodId, scheduleId } = JSON.parse(event.body);
+    let data;
+
+    try {
+      data = JSON.parse(event.body);
+    } catch (error) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: 'Invalid JSON' })
+      };
+    }
+
+    const { periodId, scheduleId } = data;
 
     try {
       const db = await connectMongoDB();
@@ -231,7 +243,7 @@ exports.handler = async function (event, context) {
       // Find the schedule containing this period
       const schedule = await collection.findOne({
         userId: userId,
-        '_id': new ObjectId(scheduleId)
+        '_id': new ObjectId(scheduleId)  // Now ObjectId is defined
       });
 
       if (!schedule) {
@@ -241,34 +253,65 @@ exports.handler = async function (event, context) {
         };
       }
 
-      // Filter out the deleted period
-      const updatedPeriods = schedule.periods.filter(p =>
-        p.scheduleId !== periodId &&
-        p._id !== periodId // Support both formats
-      );
+      // Filter out the deleted period - handle multiple ID formats
+      const updatedPeriods = schedule.periods.filter(p => {
+        // Check for scheduleId field
+        if (p.scheduleId && p.scheduleId.toString() === periodId) return false;
+        // Check for _id field (if periods have their own IDs)
+        if (p._id && p._id.toString() === periodId) return false;
+        // Check for startTime as backup identifier
+        if (p.startTime && data.startTime && p.startTime === data.startTime) return false;
+        return true;
+      });
+
+      // If no periods were removed, the period wasn't found
+      if (updatedPeriods.length === schedule.periods.length) {
+        return {
+          statusCode: 404,
+          body: JSON.stringify({
+            error: 'Period not found in schedule',
+            periodId: periodId,
+            schedulePeriodsCount: schedule.periods.length
+          })
+        };
+      }
 
       // Update the schedule in database
-      await collection.updateOne(
-        { _id: new ObjectId(scheduleId) },
+      const result = await collection.updateOne(
+        { _id: new ObjectId(scheduleId), userId: userId },
         { $set: { periods: updatedPeriods, updatedAt: new Date() } }
       );
+
+      // Log the result for debugging
+      console.log('Delete result:', {
+        matchedCount: result.matchedCount,
+        modifiedCount: result.modifiedCount,
+        periodId: periodId,
+        scheduleId: scheduleId,
+        userId: userId
+      });
 
       return {
         statusCode: 200,
         body: JSON.stringify({
           success: true,
           message: 'Period deleted successfully',
-          deletedId: periodId
+          deletedId: periodId,
+          remainingPeriods: updatedPeriods.length
         })
       };
 
     } catch (error) {
       console.error('Delete period error:', error);
+
+      // Provide more detailed error info
       return {
         statusCode: 500,
         body: JSON.stringify({
           success: false,
-          error: error.message
+          error: error.message,
+          details: 'Database operation failed',
+          code: error.code || 'UNKNOWN'
         })
       };
     }

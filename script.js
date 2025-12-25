@@ -394,6 +394,14 @@ async function deletePeriod(index) {
     if (confirm('Are you sure you want to delete this period?')) {
         const period = schedule[index];
 
+        // Log what we're trying to delete for debugging
+        console.log('Attempting to delete period:', {
+            index: index,
+            period: period,
+            scheduleId: period.scheduleId,
+            periodId: period.scheduleId || period._id
+        });
+
         try {
             const response = await fetch(`${CONFIG.API_URL}/scheduleQueue`, {
                 method: 'DELETE',
@@ -402,13 +410,24 @@ async function deletePeriod(index) {
                     'Authorization': `Bearer ${user.token.access_token}`
                 },
                 body: JSON.stringify({
-                    periodId: period.scheduleId || period._id,
-                    scheduleId: period.scheduleId || 'main' // or use actual schedule ID
+                    periodId: period.scheduleId || period._id || period.id,
+                    scheduleId: period.scheduleId || 'main', // Default to 'main' if no scheduleId
+                    startTime: period.startTime // Send as backup identifier
                 })
             });
 
+            // Parse response even if status is not OK to get error details
+            const responseText = await response.text();
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (e) {
+                result = { error: responseText };
+            }
+
             if (!response.ok) {
-                throw new Error('Failed to delete period from database');
+                console.error('Delete failed with details:', result);
+                throw new Error(result.error || `Server responded with ${response.status}`);
             }
 
             // Remove from local array
@@ -420,14 +439,23 @@ async function deletePeriod(index) {
             updatePeriodsCount();
             calculateNextBell();
 
-            showNotification('Period deleted successfully!', 'success');
+            showNotification('Period deleted successfully from database!', 'success');
 
             // Also send updated schedule to ESP32
             await sendScheduleToESP32();
 
         } catch (error) {
             console.error('Error deleting period:', error);
-            showNotification('Failed to delete period from database', 'error');
+
+            // Show more specific error message
+            let message = 'Failed to delete period from database';
+            if (error.message.includes('Period not found')) {
+                message = 'Period not found in database. It may have already been deleted.';
+            } else if (error.message.includes('Schedule not found')) {
+                message = 'Schedule not found in database. Please refresh and try again.';
+            }
+
+            showNotification(message, 'error');
         }
     }
 }
