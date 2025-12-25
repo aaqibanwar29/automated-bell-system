@@ -214,111 +214,37 @@ async function sendScheduleToESP32() {
                 'Authorization': `Bearer ${user.token.access_token}`
             },
             body: JSON.stringify({
-                periods: schedule.map(period => ({
-                    ...period,
-                    // Ensure scheduleId is included when saving
-                    scheduleId: period.scheduleId || generateUniqueId()
-                })),
+                periods: schedule,
                 timestamp: new Date().toISOString(),
                 type: 'full_schedule_update'
             })
         });
 
-        const result = await response.json();
-
-        if (!response.ok) throw new Error(result.error || 'Failed to send schedule');
-
-        // Store the scheduleId returned from server
-        if (result.scheduleId) {
-            schedule.forEach((period, index) => {
-                period.scheduleId = result.scheduleId;
-            });
-            localStorage.setItem('bellSchedule', JSON.stringify(schedule));
+        // Check specifically for 401 Unauthorized or 403 Forbidden status
+        if (response.status === 401 || response.status === 403) {
+            console.warn('Authentication token expired or invalid. Forcing user logout.');
+            showNotification('Your session has expired. Please log in again.', 'error');
+            // Trigger a logout which will reset the UI to the login screen
+            netlifyIdentity.logout();
+            return; // Stop further execution
         }
 
+        // Handle other non-OK responses (like 500 errors)
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Server responded with ${response.status}: ${errorText}`);
+        }
+
+        // If response is OK, process as before
+        const result = await response.json();
         console.log('✅ Schedule sent and stored:', result);
         showNotification(`Schedule sent (${schedule.length} periods)`, 'success');
 
     } catch (error) {
         console.error('Error sending schedule:', error);
-        showNotification('Failed to send schedule to ESP32', 'error');
-    }
-}
-
-// Helper function to generate unique ID
-function generateUniqueId() {
-    return Date.now().toString(36) + Math.random().toString(36).substring(2);
-}
-
-async function deletePeriod(index) {
-    if (confirm('Are you sure you want to delete this period?')) {
-        const period = schedule[index];
-
-        // Get scheduleId from localStorage or from first period
-        let scheduleId = localStorage.getItem('currentScheduleId');
-        if (!scheduleId && schedule.length > 0 && schedule[0].scheduleId) {
-            scheduleId = schedule[0].scheduleId;
-        }
-
-        console.log('Attempting to delete period:', {
-            index: index,
-            period: period,
-            startTime: period.startTime,
-            scheduleId: scheduleId || 'Not found'
-        });
-
-        try {
-            const response = await fetch(`${CONFIG.API_URL}/scheduleQueue`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${user.token.access_token}`
-                },
-                body: JSON.stringify({
-                    // Send startTime as the primary identifier
-                    startTime: period.startTime,
-                    // Send scheduleId if we have it
-                    scheduleId: scheduleId || undefined
-                })
-            });
-
-            const responseText = await response.text();
-            let result;
-            try {
-                result = JSON.parse(responseText);
-            } catch (e) {
-                result = { error: responseText };
-            }
-
-            if (!response.ok) {
-                console.error('Delete failed with details:', result);
-                throw new Error(result.error || `Server responded with ${response.status}`);
-            }
-
-            // Remove from local array
-            schedule.splice(index, 1);
-            localStorage.setItem('bellSchedule', JSON.stringify(schedule));
-
-            // Update UI
-            renderSchedule();
-            updatePeriodsCount();
-            calculateNextBell();
-
-            showNotification('Period deleted successfully!', 'success');
-
-            // Also send updated schedule to ESP32
-            await sendScheduleToESP32();
-
-        } catch (error) {
-            console.error('Error deleting period:', error);
-
-            let message = 'Failed to delete period from database';
-            if (error.message.includes('input must be a 24 character')) {
-                message = 'Database ID issue. Please refresh and try again.';
-            }
-
-            showNotification(message, 'error');
-        }
+        // Show a more specific error message
+        const message = error.message.includes('status') ? error.message : 'Failed to send schedule to server. Please check your connection and try again.';
+        showNotification(message, 'error');
     }
 }
 
