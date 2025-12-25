@@ -1,5 +1,4 @@
 const mqtt = require('mqtt');
-const { MongoClient } = require('mongodb');
 const { MongoClient, ObjectId } = require('mongodb');
 
 const mqttOptions = {
