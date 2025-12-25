@@ -233,84 +233,87 @@ exports.handler = async function (event, context) {
       };
     }
 
-    const { periodId, scheduleId } = data;
+    const { startTime, scheduleId } = data;
+
+    if (!startTime) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: 'startTime is required' })
+      };
+    }
 
     try {
       const db = await connectMongoDB();
       const collection = db.collection('schedules');
 
-      // Find the schedule containing this period
-      const schedule = await collection.findOne({
-        userId: userId,
-        '_id': new ObjectId(scheduleId)  // Now ObjectId is defined
-      });
+      // If scheduleId is provided and valid, use it
+      let query = { userId: userId };
+      if (scheduleId && /^[0-9a-fA-F]{24}$/.test(scheduleId)) {
+        query._id = new ObjectId(scheduleId);
+      }
 
-      if (!schedule) {
+      // Find the user's schedule(s)
+      const userSchedules = await collection.find(query).toArray();
+
+      if (userSchedules.length === 0) {
         return {
           statusCode: 404,
-          body: JSON.stringify({ error: 'Schedule not found' })
+          body: JSON.stringify({ error: 'No schedules found for user' })
         };
       }
 
-      // Filter out the deleted period - handle multiple ID formats
-      const updatedPeriods = schedule.periods.filter(p => {
-        // Check for scheduleId field
-        if (p.scheduleId && p.scheduleId.toString() === periodId) return false;
-        // Check for _id field (if periods have their own IDs)
-        if (p._id && p._id.toString() === periodId) return false;
-        // Check for startTime as backup identifier
-        if (p.startTime && data.startTime && p.startTime === data.startTime) return false;
-        return true;
-      });
+      let deleted = false;
+      let updatedScheduleId = null;
 
-      // If no periods were removed, the period wasn't found
-      if (updatedPeriods.length === schedule.periods.length) {
+      // Loop through all schedules to find and remove the period
+      for (const scheduleDoc of userSchedules) {
+        const originalCount = scheduleDoc.periods.length;
+        const updatedPeriods = scheduleDoc.periods.filter(p => p.startTime !== startTime);
+
+        // If periods were removed
+        if (updatedPeriods.length < originalCount) {
+          await collection.updateOne(
+            { _id: scheduleDoc._id },
+            { $set: { periods: updatedPeriods, updatedAt: new Date() } }
+          );
+
+          deleted = true;
+          updatedScheduleId = scheduleDoc._id.toString();
+          break;
+        }
+      }
+
+      if (!deleted) {
         return {
           statusCode: 404,
           body: JSON.stringify({
-            error: 'Period not found in schedule',
-            periodId: periodId,
-            schedulePeriodsCount: schedule.periods.length
+            error: 'Period not found',
+            startTime: startTime,
+            availablePeriods: userSchedules.flatMap(s => s.periods.map(p => p.startTime))
           })
         };
       }
-
-      // Update the schedule in database
-      const result = await collection.updateOne(
-        { _id: new ObjectId(scheduleId), userId: userId },
-        { $set: { periods: updatedPeriods, updatedAt: new Date() } }
-      );
-
-      // Log the result for debugging
-      console.log('Delete result:', {
-        matchedCount: result.matchedCount,
-        modifiedCount: result.modifiedCount,
-        periodId: periodId,
-        scheduleId: scheduleId,
-        userId: userId
-      });
 
       return {
         statusCode: 200,
         body: JSON.stringify({
           success: true,
           message: 'Period deleted successfully',
-          deletedId: periodId,
-          remainingPeriods: updatedPeriods.length
+          deletedStartTime: startTime,
+          scheduleId: updatedScheduleId,
+          timestamp: new Date().toISOString()
         })
       };
 
     } catch (error) {
       console.error('Delete period error:', error);
 
-      // Provide more detailed error info
       return {
         statusCode: 500,
         body: JSON.stringify({
           success: false,
           error: error.message,
-          details: 'Database operation failed',
-          code: error.code || 'UNKNOWN'
+          details: 'Database operation failed'
         })
       };
     }
