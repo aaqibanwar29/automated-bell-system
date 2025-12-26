@@ -349,6 +349,18 @@ exports.handler = async function (event, context) {
       };
     }
 
+    for (const period of scheduleData.periods) {
+      if (!period.day) {
+        return {
+          statusCode: 400,
+          body: JSON.stringify({
+            error: 'Missing day field in period',
+            period: period
+          })
+        };
+      }
+    }
+
     try {
       // Store schedule in MongoDB
       await storeSchedule(scheduleData, userId);

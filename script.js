@@ -14,6 +14,18 @@ const CONFIG = {
 let mqttClient = null;
 let schedule = [];
 let user = null;
+let daysSchedule = {
+    "Monday": { enabled: false, periods: [] },
+    "Tuesday": { enabled: false, periods: [] },
+    "Wednesday": { enabled: false, periods: [] },
+    "Thursday": { enabled: false, periods: [] },
+    "Friday": { enabled: false, periods: [] },
+    "Saturday": { enabled: false, periods: [] },
+    "Sunday": { enabled: false, periods: [] },
+    "Exam Day": { enabled: false, periods: [] }
+};
+let isExamMode = false;
+let expandedDay = null;
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function () {
@@ -99,6 +111,42 @@ function setupEventListeners() {
             document.getElementById('periodForm').reset();
         }
     });
+
+    // Mode selector
+    document.querySelectorAll('input[name="scheduleMode"]').forEach(radio => {
+        radio.addEventListener('change', async (e) => {
+            if (e.target.value === 'exam') {
+                isExamMode = true;
+                await toggleDay('Exam Day', true);
+            } else {
+                isExamMode = false;
+                await toggleDay('Exam Day', false);
+            }
+        });
+    });
+
+    // Toggle all days
+    document.getElementById('toggleAllBtn')?.addEventListener('click', async () => {
+        const allEnabled = Object.keys(daysSchedule).every(day => daysSchedule[day].enabled);
+
+        Object.keys(daysSchedule).forEach(async (dayName) => {
+            if (dayName !== 'Exam Day') {
+                await toggleDay(dayName, !allEnabled);
+            }
+        });
+    });
+
+    // Clear all periods
+    document.getElementById('clearAllBtn')?.addEventListener('click', async () => {
+        if (confirm('Are you sure you want to clear all periods?')) {
+            Object.keys(daysSchedule).forEach(dayName => {
+                daysSchedule[dayName].periods = [];
+                updateDayCard(dayName);
+            });
+            await clearDatabaseAndUpdateSchedule();
+            showNotification('All periods cleared', 'success');
+        }
+    });
 }
 
 // MQTT Connection
@@ -132,18 +180,40 @@ function simulateMQTTConnection() {
 }
 
 // Schedule Management
+// Load schedule from database
 async function loadSchedule() {
     try {
-        // Load from localStorage for demo
-        const savedSchedule = localStorage.getItem('bellSchedule');
-        if (savedSchedule) {
-            schedule = JSON.parse(savedSchedule);
-            renderSchedule();
+        const response = await fetch(`${CONFIG.API_URL}/getSchedule`);
+        const result = await response.json();
+
+        if (result.schedule && result.schedule.periods) {
+            // Reset days schedule
+            Object.keys(daysSchedule).forEach(dayName => {
+                daysSchedule[dayName].periods = [];
+                daysSchedule[dayName].enabled = false;
+            });
+
+            // Group periods by day
+            result.schedule.periods.forEach(period => {
+                if (daysSchedule[period.day]) {
+                    daysSchedule[period.day].periods.push(period);
+                    daysSchedule[period.day].enabled = true;
+                }
+            });
+
+            // Check if in exam mode
+            isExamMode = result.schedule.periods.some(p => p.day === 'Exam Day');
+
+            // Initialize UI
+            initializeDays();
             updatePeriodsCount();
             calculateNextBell();
         }
+
     } catch (error) {
         console.error('Error loading schedule:', error);
+        // Initialize with empty days
+        initializeDays();
     }
 }
 
@@ -178,25 +248,31 @@ function renderSchedule() {
 async function savePeriod(e) {
     e.preventDefault();
 
+    const dayName = document.getElementById('periodDay').value;
     const period = {
         name: document.getElementById('periodName').value,
+        day: dayName,
         startTime: document.getElementById('startTime').value,
         endTime: document.getElementById('endTime').value,
         duration: parseInt(document.getElementById('bellDuration').value)
     };
 
-    schedule.push(period);
+    // Validate time
+    if (period.startTime >= period.endTime) {
+        showNotification('End time must be after start time', 'error');
+        return;
+    }
 
-    // Save to localStorage (replace with API call in production)
-    localStorage.setItem('bellSchedule', JSON.stringify(schedule));
+    // Add period to the day
+    daysSchedule[dayName].periods.push(period);
 
-    // Send to ESP32 via MQTT
-    await sendScheduleToESP32();
+    // Update the day card
+    updateDayCard(dayName);
 
-    // Update UI
-    renderSchedule();
-    updatePeriodsCount();
-    calculateNextBell();
+    // Save to database
+    if (daysSchedule[dayName].enabled) {
+        await updateScheduleInDatabase();
+    }
 
     // Close modal and reset form
     document.getElementById('addPeriodModal').style.display = 'none';
@@ -207,6 +283,8 @@ async function savePeriod(e) {
 
 async function sendScheduleToESP32() {
     try {
+        const periods = getAllEnabledPeriods();
+
         const response = await fetch(`${CONFIG.API_URL}/scheduleQueue`, {
             method: 'POST',
             headers: {
@@ -214,37 +292,29 @@ async function sendScheduleToESP32() {
                 'Authorization': `Bearer ${user.token.access_token}`
             },
             body: JSON.stringify({
-                periods: schedule,
+                periods: periods,
                 timestamp: new Date().toISOString(),
                 type: 'full_schedule_update'
             })
         });
 
-        // Check specifically for 401 Unauthorized or 403 Forbidden status
         if (response.status === 401 || response.status === 403) {
-            console.warn('Authentication token expired or invalid. Forcing user logout.');
-            showNotification('Your session has expired. Please log in again.', 'error');
-            // Trigger a logout which will reset the UI to the login screen
+            showNotification('Session expired. Please log in again.', 'error');
             netlifyIdentity.logout();
-            return; // Stop further execution
+            return;
         }
 
-        // Handle other non-OK responses (like 500 errors)
         if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Server responded with ${response.status}: ${errorText}`);
+            throw new Error('Failed to send schedule');
         }
 
-        // If response is OK, process as before
         const result = await response.json();
         console.log('✅ Schedule sent and stored:', result);
-        showNotification(`Schedule sent (${schedule.length} periods)`, 'success');
+        showNotification(`Schedule sent (${periods.length} periods)`, 'success');
 
     } catch (error) {
         console.error('Error sending schedule:', error);
-        // Show a more specific error message
-        const message = error.message.includes('status') ? error.message : 'Failed to send schedule to server. Please check your connection and try again.';
-        showNotification(message, 'error');
+        showNotification('Failed to send schedule', 'error');
     }
 }
 
@@ -340,39 +410,71 @@ function updateLastBellTime() {
     document.getElementById('lastBellTime').textContent = timeString;
 }
 
+// Update periods count
 function updatePeriodsCount() {
-    document.getElementById('periodsCount').textContent = schedule.length;
+    const totalPeriods = Object.keys(daysSchedule).reduce((total, dayName) => {
+        return total + daysSchedule[dayName].periods.length;
+    }, 0);
+
+    document.getElementById('periodsCount').textContent = totalPeriods;
 }
 
+// Calculate next bell considering day
 function calculateNextBell() {
-    if (schedule.length === 0) {
-        document.getElementById('nextBellTime').textContent = 'No schedule';
-        return;
-    }
-
     const now = new Date();
+    const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' });
     const currentTime = now.getHours() * 60 + now.getMinutes();
 
     let nextBell = null;
 
-    for (const period of schedule) {
-        const [startHour, startMinute] = period.startTime.split(':').map(Number);
-        const startTime = startHour * 60 + startMinute;
+    // Check today's schedule if enabled
+    if (daysSchedule[currentDay]?.enabled) {
+        for (const period of daysSchedule[currentDay].periods) {
+            const [startHour, startMinute] = period.startTime.split(':').map(Number);
+            const startTime = startHour * 60 + startMinute;
 
-        if (startTime > currentTime) {
-            if (!nextBell || startTime < nextBell.startTime) {
-                nextBell = {
-                    time: period.startTime,
-                    startTime: startTime
-                };
+            if (startTime > currentTime) {
+                if (!nextBell || startTime < nextBell.startTime) {
+                    nextBell = {
+                        time: period.startTime,
+                        startTime: startTime,
+                        day: currentDay
+                    };
+                }
+            }
+        }
+    }
+
+    // If no bell today, check next enabled day
+    if (!nextBell) {
+        const days = Object.keys(daysSchedule);
+        const currentDayIndex = days.indexOf(currentDay);
+
+        for (let i = 1; i <= days.length; i++) {
+            const nextDayIndex = (currentDayIndex + i) % days.length;
+            const nextDay = days[nextDayIndex];
+
+            if (daysSchedule[nextDay]?.enabled && daysSchedule[nextDay].periods.length > 0) {
+                const earliestPeriod = daysSchedule[nextDay].periods.reduce((earliest, period) => {
+                    const [startHour, startMinute] = period.startTime.split(':').map(Number);
+                    const startTime = startHour * 60 + startMinute;
+                    return !earliest || startTime < earliest.startTime ?
+                        { time: period.startTime, startTime: startTime, day: nextDay } : earliest;
+                }, null);
+
+                if (earliestPeriod) {
+                    nextBell = earliestPeriod;
+                    break;
+                }
             }
         }
     }
 
     if (nextBell) {
-        document.getElementById('nextBellTime').textContent = nextBell.time;
+        document.getElementById('nextBellTime').textContent =
+            `${nextBell.day} ${nextBell.time}`;
     } else {
-        document.getElementById('nextBellTime').textContent = 'Tomorrow';
+        document.getElementById('nextBellTime').textContent = 'No schedule';
     }
 }
 
@@ -476,3 +578,282 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// Initialize days in schedule list
+function initializeDays() {
+    const scheduleList = document.getElementById('scheduleList');
+    scheduleList.innerHTML = '';
+
+    Object.keys(daysSchedule).forEach(dayName => {
+        const dayCard = createDayCard(dayName);
+        scheduleList.appendChild(dayCard);
+    });
+}
+
+// Create day card HTML
+function createDayCard(dayName) {
+    const day = daysSchedule[dayName];
+    const periodCount = day.periods.length;
+
+    const dayCard = document.createElement('div');
+    dayCard.className = `day-card ${day.enabled ? 'active' : ''} ${isExamMode && dayName === 'Exam Day' ? 'exam-mode' : ''}`;
+    dayCard.id = `day-${dayName.replace(/\s+/g, '-').toLowerCase()}`;
+
+    dayCard.innerHTML = `
+        <div class="day-header" onclick="toggleDayExpansion('${dayName}')">
+            <div class="day-info">
+                <i class="ri-arrow-right-s-fill day-icon"></i>
+                <span class="day-title">${dayName}</span>
+                <span class="period-count">${periodCount} period${periodCount !== 1 ? 's' : ''}</span>
+            </div>
+            <div class="day-toggle">
+                <label class="toggle-switch">
+                    <input type="checkbox" ${day.enabled ? 'checked' : ''} 
+                           onchange="toggleDay('${dayName}', this.checked)">
+                    <span class="toggle-slider"></span>
+                </label>
+                <button class="add-period-btn" onclick="openAddPeriodModal('${dayName}')">
+                    <i class="ri-apps-2-add-fill"></i>
+                </button>
+            </div>
+        </div>
+        <div class="periods-container">
+            ${renderPeriodsForDay(dayName)}
+        </div>
+    `;
+
+    return dayCard;
+}
+
+// Render periods for a specific day
+function renderPeriodsForDay(dayName) {
+    const periods = daysSchedule[dayName].periods;
+    if (periods.length === 0) {
+        return '<div class="no-periods">No periods added</div>';
+    }
+
+    return periods.map((period, index) => `
+        <div class="period-item" data-period-index="${index}">
+            <div class="period-info">
+                <h4>${period.name || `Period ${index + 1}`}</h4>
+                <div class="period-time">
+                    <i class="far fa-clock"></i> ${period.startTime} - ${period.endTime}
+                    <span class="duration">(${period.duration}s bell)</span>
+                </div>
+            </div>
+            <div class="period-actions">
+                <button class="btn delete-period-btn" onclick="deletePeriodFromDay('${dayName}', ${index})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Toggle day expansion
+function toggleDayExpansion(dayName) {
+    const dayCard = document.getElementById(`day-${dayName.replace(/\s+/g, '-').toLowerCase()}`);
+
+    if (expandedDay === dayName) {
+        dayCard.classList.remove('day-expanded');
+        expandedDay = null;
+    } else {
+        // Collapse previously expanded day
+        if (expandedDay) {
+            const prevDayCard = document.getElementById(`day-${expandedDay.replace(/\s+/g, '-').toLowerCase()}`);
+            prevDayCard.classList.remove('day-expanded');
+        }
+
+        dayCard.classList.add('day-expanded');
+        expandedDay = dayName;
+    }
+}
+
+// Toggle day on/off
+async function toggleDay(dayName, enabled) {
+    if (isExamMode && dayName !== 'Exam Day' && enabled) {
+        showNotification('Cannot enable regular days in Exam mode. Disable Exam Day first.', 'error');
+        document.querySelector(`#day-${dayName.replace(/\s+/g, '-').toLowerCase()} input[type="checkbox"]`).checked = false;
+        return;
+    }
+
+    if (dayName === 'Exam Day' && enabled) {
+        // Enable Exam Day mode - disable all other days
+        isExamMode = true;
+        Object.keys(daysSchedule).forEach(day => {
+            if (day !== 'Exam Day') {
+                daysSchedule[day].enabled = false;
+                updateDayCard(day);
+            }
+        });
+        daysSchedule['Exam Day'].enabled = true;
+        updateDayCard('Exam Day');
+        await clearDatabaseAndUpdateSchedule();
+    } else if (dayName === 'Exam Day' && !enabled) {
+        // Disable Exam Day mode
+        isExamMode = false;
+        daysSchedule['Exam Day'].enabled = false;
+        updateDayCard('Exam Day');
+        await clearDatabaseAndUpdateSchedule();
+    } else {
+        // Regular day toggle
+        daysSchedule[dayName].enabled = enabled;
+        updateDayCard(dayName);
+
+        if (enabled) {
+            await updateScheduleInDatabase();
+        } else {
+            await clearDayFromDatabase(dayName);
+        }
+    }
+
+    // Update mode selector
+    document.querySelector('input[name="scheduleMode"][value="exam"]').checked = isExamMode;
+    document.querySelector('input[name="scheduleMode"][value="regular"]').checked = !isExamMode;
+}
+
+// Open add period modal with selected day
+function openAddPeriodModal(dayName) {
+    document.getElementById('addPeriodModal').style.display = 'flex';
+    document.getElementById('selectedDay').value = dayName;
+    document.getElementById('periodDay').value = dayName;
+}
+
+async function deletePeriodFromDay(dayName, periodIndex) {
+    if (confirm('Are you sure you want to delete this period?')) {
+        daysSchedule[dayName].periods.splice(periodIndex, 1);
+        updateDayCard(dayName);
+
+        if (daysSchedule[dayName].enabled) {
+            await updateScheduleInDatabase();
+        }
+
+        showNotification('Period deleted successfully!', 'success');
+    }
+}
+
+// Update day card in UI
+function updateDayCard(dayName) {
+    const dayCard = document.getElementById(`day-${dayName.replace(/\s+/g, '-').toLowerCase()}`);
+    const newDayCard = createDayCard(dayName);
+
+    // Preserve expansion state
+    if (dayCard.classList.contains('day-expanded')) {
+        newDayCard.classList.add('day-expanded');
+    }
+
+    dayCard.replaceWith(newDayCard);
+}
+
+// Get all enabled periods
+function getAllEnabledPeriods() {
+    const allPeriods = [];
+
+    Object.keys(daysSchedule).forEach(dayName => {
+        if (daysSchedule[dayName].enabled && daysSchedule[dayName].periods.length > 0) {
+            daysSchedule[dayName].periods.forEach(period => {
+                allPeriods.push({
+                    ...period,
+                    day: dayName
+                });
+            });
+        }
+    });
+
+    return allPeriods;
+}
+
+// Clear database and update schedule
+async function clearDatabaseAndUpdateSchedule() {
+    try {
+        // Clear all schedules from database
+        const clearResponse = await fetch(`${CONFIG.API_URL}/clearSchedule`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${user.token.access_token}`
+            }
+        });
+
+        if (!clearResponse.ok) {
+            throw new Error('Failed to clear schedule');
+        }
+
+        // Update with current schedule
+        await updateScheduleInDatabase();
+
+    } catch (error) {
+        console.error('Error clearing schedule:', error);
+        showNotification('Failed to update schedule', 'error');
+    }
+}
+
+// Clear specific day from database
+async function clearDayFromDatabase(dayName) {
+    try {
+        const response = await fetch(`${CONFIG.API_URL}/clearDay`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${user.token.access_token}`
+            },
+            body: JSON.stringify({ day: dayName })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to clear day');
+        }
+
+        showNotification(`Cleared ${dayName} from schedule`, 'success');
+    } catch (error) {
+        console.error('Error clearing day:', error);
+    }
+}
+
+// Update schedule in database
+async function updateScheduleInDatabase() {
+    const periods = getAllEnabledPeriods();
+
+    if (periods.length === 0) {
+        showNotification('No enabled periods to save', 'warning');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${CONFIG.API_URL}/scheduleQueue`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${user.token.access_token}`
+            },
+            body: JSON.stringify({
+                periods: periods,
+                timestamp: new Date().toISOString(),
+                type: 'full_schedule_update',
+                mode: isExamMode ? 'exam' : 'regular'
+            })
+        });
+
+        if (response.status === 401 || response.status === 403) {
+            showNotification('Session expired. Please log in again.', 'error');
+            netlifyIdentity.logout();
+            return;
+        }
+
+        if (!response.ok) {
+            throw new Error('Failed to update schedule');
+        }
+
+        const result = await response.json();
+        console.log('✅ Schedule updated:', result);
+        showNotification(`Schedule updated (${periods.length} periods)`, 'success');
+
+        // Send to ESP32
+        await sendScheduleToESP32();
+
+    } catch (error) {
+        console.error('Error updating schedule:', error);
+        showNotification('Failed to update schedule', 'error');
+    }
+}
+

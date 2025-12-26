@@ -1,14 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Automated School Bell System</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
 </head>
+
 <body>
     <div class="container">
         <!-- Login Screen -->
@@ -52,14 +55,31 @@
                     <!-- Schedule Management -->
                     <div class="card schedule-card">
                         <div class="card-header">
-                            <h2><i class="fas fa-calendar-alt"></i> Bell Schedule</h2>
-                            <button id="addPeriodBtn" class="btn add-btn">
-                                <i class="fas fa-plus"></i> Add Period
-                            </button>
+                            <h2><i class="fas fa-calendar-alt"></i> Weekly Bell Schedule</h2>
+                            <div class="header-actions">
+                                <button id="toggleAllBtn" class="btn toggle-btn">
+                                    <i class="fas fa-toggle-on"></i> Toggle All
+                                </button>
+                                <button id="clearAllBtn" class="btn clear-btn">
+                                    <i class="fas fa-trash-alt"></i> Clear All
+                                </button>
+                            </div>
                         </div>
                         <div class="card-body">
+                            <div class="schedule-controls">
+                                <div class="mode-selector">
+                                    <label class="mode-option">
+                                        <input type="radio" name="scheduleMode" value="regular" checked>
+                                        <span>Regular Schedule</span>
+                                    </label>
+                                    <label class="mode-option">
+                                        <input type="radio" name="scheduleMode" value="exam">
+                                        <span>Exam Schedule</span>
+                                    </label>
+                                </div>
+                            </div>
                             <div class="schedule-list" id="scheduleList">
-                                <!-- Periods will be added here dynamically -->
+                                <!-- Days will be added dynamically -->
                             </div>
                         </div>
                     </div>
@@ -121,6 +141,21 @@
                 </div>
                 <div class="modal-body">
                     <form id="periodForm">
+                        <input type="hidden" id="selectedDay">
+                        <div class="form-group">
+                            <label for="periodDay">Day</label>
+                            <select id="periodDay" required>
+                                <option value="">Select a day</option>
+                                <option value="Monday">Monday</option>
+                                <option value="Tuesday">Tuesday</option>
+                                <option value="Wednesday">Wednesday</option>
+                                <option value="Thursday">Thursday</option>
+                                <option value="Friday">Friday</option>
+                                <option value="Saturday">Saturday</option>
+                                <option value="Sunday">Sunday</option>
+                                <option value="Exam Day">Exam Day</option>
+                            </select>
+                        </div>
                         <div class="form-group">
                             <label for="periodName">Period Name</label>
                             <input type="text" id="periodName" placeholder="e.g., Period 1, Lunch Break">
@@ -151,4 +186,5 @@
 
     <script src="script.js"></script>
 </body>
+
 </html>

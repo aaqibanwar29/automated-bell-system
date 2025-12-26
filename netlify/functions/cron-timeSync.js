@@ -32,16 +32,20 @@ async function getAccurateTime() {
       if (response.ok) {
         const data = await response.json();
         const datetime = source.parser(data);
-        
-        // Parse "2024-12-19T20:15:30.123+05:30"
+
+        // Parse datetime and day of week
+        const date = new Date(datetime);
+        const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
         const timeMatch = datetime.match(/(\d{2}):(\d{2}):(\d{2})/);
+
         if (timeMatch) {
           return {
             hour: parseInt(timeMatch[1]),
             minute: parseInt(timeMatch[2]),
             second: parseInt(timeMatch[3]),
+            dayOfWeek: dayOfWeek,
             source: source.url,
-            timestamp: new Date().toISOString()
+            timestamp: date.toISOString()
           };
         }
       }
@@ -53,40 +57,44 @@ async function getAccurateTime() {
 
   // Fallback to system time
   const now = new Date();
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
   return {
     hour: now.getUTCHours() + 5, // GMT+5:30
     minute: now.getUTCMinutes() + 30,
     second: now.getUTCSeconds(),
+    dayOfWeek: days[now.getUTCDay()],
     source: 'system_fallback',
     timestamp: now.toISOString()
   };
 }
 
-exports.handler = async function(event, context) {
+exports.handler = async function (event, context) {
   console.log('🕐 CRON: Time sync function triggered');
-  
+
   try {
     // Get accurate time
     const timeData = await getAccurateTime();
     console.log('Time obtained:', timeData);
-    
+
     // Connect to MQTT
     const client = mqtt.connect(mqttOptions);
-    
+
     await new Promise((resolve, reject) => {
       client.on('connect', () => {
         console.log('✅ Connected to MQTT for time sync');
-        
+
         // Publish time to ESP32
         const timeMessage = JSON.stringify({
           type: 'time_sync',
           hour: timeData.hour,
           minute: timeData.minute,
           second: timeData.second,
+          dayOfWeek: timeData.dayOfWeek,
           source: timeData.source,
           timestamp: timeData.timestamp
         });
-        
+
         client.publish('bell/time/update', timeMessage, { qos: 1 }, (err) => {
           client.end();
           if (err) reject(err);
@@ -96,32 +104,32 @@ exports.handler = async function(event, context) {
           }
         });
       });
-      
+
       client.on('error', reject);
-      
+
       // Timeout
       setTimeout(() => {
         client.end();
         reject(new Error('MQTT connection timeout'));
       }, 5000);
     });
-    
+
     return {
       statusCode: 200,
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         success: true,
         message: `Time ${timeData.hour}:${timeData.minute}:${timeData.second} sent to ESP32`,
         data: timeData
       })
     };
-    
+
   } catch (error) {
     console.error('❌ CRON Time sync failed:', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         success: false,
-        error: error.message 
+        error: error.message
       })
     };
   }
