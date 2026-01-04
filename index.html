@@ -1,244 +1,130 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Smart Bell System Pro | Automated School Bell Management</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automated School Bell System</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
 </head>
+
 <body>
-    <div class="app-container">
+    <div class="container">
         <!-- Login Screen -->
-        <div id="loginScreen" class="screen login-screen">
-            <div class="login-wrapper">
-                <div class="auth-card">
-                    <div class="auth-header">
-                        <div class="logo-display">
-                            <div class="logo-icon">
-                                <i class="fas fa-bell"></i>
-                                <div class="ring-animation"></div>
-                            </div>
-                            <h1 class="brand-title">Smart Bell System</h1>
-                            <p class="brand-subtitle">Automated Bell Management Platform</p>
-                        </div>
-                    </div>
-                    
-                    <div class="auth-body">
-                        <div class="login-panel">
-                            <div class="welcome-message">
-                                <h2><i class="fas fa-lock"></i> Secure Staff Access</h2>
-                                <p class="instruction-text">
-                                    Authenticate using your institutional Google account to access the bell schedule management system.
-                                    Unauthorized access is strictly prohibited.
-                                </p>
-                            </div>
-                            
-                            <div class="login-actions">
-                                <button id="googleLogin" class="btn google-auth-btn">
-                                    <span class="btn-icon">
-                                        <i class="fab fa-google"></i>
-                                    </span>
-                                    <span class="btn-text">Sign in with Google</span>
-                                </button>
-                                
-                                <div class="security-notice">
-                                    <i class="fas fa-shield-alt"></i>
-                                    <span>Protected by Netlify Identity & SSL Encryption</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="auth-footer">
-                        <p class="system-info">
-                            <i class="fas fa-info-circle"></i>
-                            System Version 2.1.4 | Last Updated: January 2026
-                        </p>
-                    </div>
+        <div id="loginScreen" class="screen">
+            <div class="login-container">
+                <div class="logo">
+                    <i class="fas fa-bell"></i>
+                    <h1>Smart Bell System</h1>
+                </div>
+                <div class="login-box">
+                    <h2>Staff Login</h2>
+                    <p>Please login with your Google account to manage the bell schedule</p>
+                    <button id="googleLogin" class="btn google-btn">
+                        <i class="fab fa-google"></i> Sign in with Google
+                    </button>
+                    <div id="netlify-identity-widget"></div>
                 </div>
             </div>
         </div>
 
-        <!-- Main Dashboard -->
-        <div id="dashboard" class="screen dashboard-screen" style="display: none;">
-            <!-- Top Navigation Bar -->
-            <nav class="navbar">
-                <div class="nav-container">
-                    <div class="nav-brand">
-                        <div class="brand-logo">
-                            <i class="fas fa-bell"></i>
-                        </div>
-                        <div class="brand-text">
-                            <h1>Smart Bell System</h1>
-                            <p class="system-status">
-                                <span class="status-indicator online"></span>
-                                <span id="connectionStatus">System Online</span>
-                            </p>
-                        </div>
-                    </div>
-                    
-                    <div class="nav-controls">
-                        <div class="time-display">
-                            <i class="fas fa-clock"></i>
-                            <span id="currentTime" class="live-time">Loading...</span>
-                        </div>
-                        
-                        <button id="logoutBtn" class="btn logout-btn">
-                            <i class="fas fa-sign-out-alt"></i>
-                            <span class="btn-label">Logout</span>
-                        </button>
+        <!-- Main Dashboard (Hidden by default) -->
+        <div id="dashboard" class="screen" style="display: none;">
+            <header>
+                <div class="header-left">
+                    <h1><i class="fas fa-bell"></i> Automated Bell System</h1>
+                    <div class="status">
+                        <span class="status-dot online"></span>
+                        <span id="connectionStatus">Connected</span>
                     </div>
                 </div>
-            </nav>
+                <div class="header-right">
+                    <button id="logoutBtn" class="btn logout-btn">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                    <div class="current-time" id="currentTime"></div>
+                </div>
+            </header>
 
-            <!-- Main Content -->
-            <main class="main-content">
-                <div class="content-wrapper">
-                    <!-- Left Column: Schedule Management -->
-                    <div class="content-column main-column">
-                        <div class="card schedule-management-card">
-                            <div class="card-header">
-                                <h2>
-                                    <i class="fas fa-calendar-alt"></i>
-                                    Weekly Schedule Configuration
-                                </h2>
-                                <div class="card-actions">
-                                    <button id="toggleAllBtn" class="btn action-btn toggle-action">
-                                        <i class="fas fa-toggle-on"></i>
-                                        <span>Toggle All Days</span>
-                                    </button>
-                                    <button id="clearAllBtn" class="btn action-btn danger-action">
-                                        <i class="fas fa-trash-alt"></i>
-                                        <span>Clear All Periods</span>
-                                    </button>
+            <main>
+                <div class="dashboard-grid">
+                    <!-- Schedule Management -->
+                    <div class="card schedule-card">
+                        <div class="card-header">
+                            <h2><i class="fas fa-calendar-alt"></i> Weekly Bell Schedule</h2>
+                            <div class="header-actions">
+                                <button id="toggleAllBtn" class="btn toggle-btn">
+                                    <i class="fas fa-toggle-on"></i> Toggle All
+                                </button>
+                                <button id="clearAllBtn" class="btn clear-btn">
+                                    <i class="fas fa-trash-alt"></i> Clear All
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="schedule-controls">
+                                <div class="mode-selector">
+                                    <label class="mode-option">
+                                        <input type="radio" name="scheduleMode" value="regular" checked>
+                                        <span>Regular Schedule</span>
+                                    </label>
+                                    <label class="mode-option">
+                                        <input type="radio" name="scheduleMode" value="exam">
+                                        <span>Exam Schedule</span>
+                                    </label>
                                 </div>
                             </div>
-                            
-                            <div class="card-body">
-                                <div class="schedule-mode-selector">
-                                    <div class="mode-tabs">
-                                        <button class="mode-tab active" data-mode="regular">
-                                            <i class="fas fa-school"></i>
-                                            <span>Regular Schedule</span>
-                                        </button>
-                                        <button class="mode-tab" data-mode="exam">
-                                            <i class="fas fa-file-alt"></i>
-                                            <span>Exam Schedule</span>
-                                        </button>
-                                    </div>
-                                    <div class="mode-info">
-                                        <p id="modeDescription">Regular school day schedule configuration</p>
-                                    </div>
-                                </div>
-                                
-                                <div class="schedule-container">
-                                    <div class="days-list" id="scheduleList">
-                                        <!-- Days will be dynamically generated -->
-                                    </div>
-                                </div>
+                            <div class="schedule-list" id="scheduleList">
+                                <!-- Days will be added dynamically -->
                             </div>
                         </div>
                     </div>
 
-                    <!-- Right Column: Controls & Status -->
-                    <div class="content-column sidebar-column">
-                        <!-- Manual Controls Card -->
-                        <div class="card manual-controls-card">
-                            <div class="card-header">
-                                <h2>
-                                    <i class="fas fa-sliders-h"></i>
-                                    Manual Bell Controls
-                                </h2>
+                    <!-- Manual Controls -->
+                    <div class="card controls-card">
+                        <div class="card-header">
+                            <h2><i class="fas fa-sliders-h"></i> Manual Controls</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="control-group">
+                                <label for="manualDuration">Bell Duration (seconds)</label>
+                                <input type="number" id="manualDuration" min="1" max="30" value="5">
                             </div>
-                            
-                            <div class="card-body">
-                                <div class="control-group">
-                                    <label for="manualDuration" class="control-label">
-                                        <i class="fas fa-hourglass-half"></i>
-                                        Bell Duration
-                                    </label>
-                                    <div class="duration-selector">
-                                        <input type="range" id="durationSlider" min="1" max="30" value="5">
-                                        <div class="duration-display">
-                                            <input type="number" id="manualDuration" min="1" max="30" value="5">
-                                            <span class="unit">seconds</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <button id="ringNowBtn" class="btn ring-now-btn">
-                                    <i class="fas fa-play-circle"></i>
-                                    <span>Ring Bell Now</span>
-                                </button>
-                                
-                                <div class="last-ring-info">
-                                    <h3>
-                                        <i class="fas fa-history"></i>
-                                        Last Bell Activation
-                                    </h3>
-                                    <div class="time-display-box">
-                                        <p id="lastBellTime">No bells activated yet</p>
-                                        <p class="timestamp-label">System Ready</p>
-                                    </div>
-                                </div>
+                            <button id="ringNowBtn" class="btn ring-btn">
+                                <i class="fas fa-play"></i> Ring Bell Now
+                            </button>
+                            <div class="last-rang">
+                                <h3>Last Bell Rang:</h3>
+                                <p id="lastBellTime">No bells rung yet</p>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- System Status Card -->
-                        <div class="card system-status-card">
-                            <div class="card-header">
-                                <h2>
-                                    <i class="fas fa-heartbeat"></i>
-                                    System Status
-                                </h2>
+                    <!-- System Status -->
+                    <div class="card status-card">
+                        <div class="card-header">
+                            <h2><i class="fas fa-info-circle"></i> System Status</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="status-item">
+                                <span class="status-label">WiFi Status:</span>
+                                <span class="status-value" id="wifiStatus">Connected</span>
                             </div>
-                            
-                            <div class="card-body">
-                                <div class="status-grid">
-                                    <div class="status-item">
-                                        <div class="status-label">
-                                            <i class="fas fa-wifi"></i>
-                                            <span>Network Status</span>
-                                        </div>
-                                        <div class="status-value" id="wifiStatus">
-                                            <span class="status-badge connected">Connected</span>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="status-item">
-                                        <div class="status-label">
-                                            <i class="fas fa-satellite-dish"></i>
-                                            <span>MQTT Connection</span>
-                                        </div>
-                                        <div class="status-value" id="mqttStatus">
-                                            <span class="status-badge connected">Active</span>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="status-item">
-                                        <div class="status-label">
-                                            <i class="fas fa-bell"></i>
-                                            <span>Next Bell Schedule</span>
-                                        </div>
-                                        <div class="status-value" id="nextBellTime">
-                                            <span class="next-bell">Loading schedule...</span>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="status-item">
-                                        <div class="status-label">
-                                            <i class="fas fa-list-ol"></i>
-                                            <span>Active Periods</span>
-                                        </div>
-                                        <div class="status-value">
-                                            <span class="periods-count" id="periodsCount">0</span>
-                                            <span class="periods-label">periods configured</span>
-                                        </div>
-                                    </div>
-                                </div>
+                            <div class="status-item">
+                                <span class="status-label">MQTT Status:</span>
+                                <span class="status-value" id="mqttStatus">Connected</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Next Bell:</span>
+                                <span class="status-value" id="nextBellTime">Loading...</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Periods Today:</span>
+                                <span class="status-value" id="periodsCount">0</span>
                             </div>
                         </div>
                     </div>
@@ -247,27 +133,19 @@
         </div>
 
         <!-- Add Period Modal -->
-        <div id="addPeriodModal" class="modal-overlay">
-            <div class="modal-container">
+        <div id="addPeriodModal" class="modal">
+            <div class="modal-content">
                 <div class="modal-header">
-                    <h2>
-                        <i class="fas fa-plus-circle"></i>
-                        Add New Period
-                    </h2>
-                    <button class="modal-close">&times;</button>
+                    <h2><i class="fas fa-plus-circle"></i> Add New Period</h2>
+                    <span class="close">&times;</span>
                 </div>
-                
                 <div class="modal-body">
-                    <form id="periodForm" class="period-form">
+                    <form id="periodForm">
                         <input type="hidden" id="selectedDay">
-                        
-                        <div class="form-section">
-                            <label class="form-label">
-                                <i class="fas fa-calendar-day"></i>
-                                Select Day
-                            </label>
-                            <select id="periodDay" class="form-select" required>
-                                <option value="">Choose a day...</option>
+                        <div class="form-group">
+                            <label for="periodDay">Day</label>
+                            <select id="periodDay" required>
+                                <option value="">Select a day</option>
                                 <option value="Monday">Monday</option>
                                 <option value="Tuesday">Tuesday</option>
                                 <option value="Wednesday">Wednesday</option>
@@ -278,66 +156,35 @@
                                 <option value="Exam Day">Exam Day</option>
                             </select>
                         </div>
-                        
-                        <div class="form-section">
-                            <label class="form-label">
-                                <i class="fas fa-heading"></i>
-                                Period Name (Optional)
-                            </label>
-                            <input type="text" id="periodName" class="form-input" 
-                                   placeholder="e.g., First Period, Lunch Break, Assembly">
-                            <p class="input-hint">Leave blank for automatic naming</p>
+                        <div class="form-group">
+                            <label for="periodName">Period Name</label>
+                            <input type="text" id="periodName" placeholder="e.g., Period 1, Lunch Break">
                         </div>
-                        
-                        <div class="time-input-group">
-                            <div class="form-section">
-                                <label class="form-label">
-                                    <i class="fas fa-play-circle"></i>
-                                    Start Time
-                                </label>
-                                <input type="time" id="startTime" class="form-input time-input" required>
+                        <div class="time-group">
+                            <div class="form-group">
+                                <label for="startTime">Start Time</label>
+                                <input type="time" id="startTime" required>
                             </div>
-                            
-                            <div class="form-section">
-                                <label class="form-label">
-                                    <i class="fas fa-stop-circle"></i>
-                                    End Time
-                                </label>
-                                <input type="time" id="endTime" class="form-input time-input" required>
+                            <div class="form-group">
+                                <label for="endTime">End Time</label>
+                                <input type="time" id="endTime" required>
                             </div>
                         </div>
-                        
-                        <div class="form-section">
-                            <label class="form-label">
-                                <i class="fas fa-hourglass"></i>
-                                Bell Duration
-                            </label>
-                            <div class="duration-input-group">
-                                <input type="number" id="bellDuration" class="form-input" 
-                                       min="1" max="30" value="5" required>
-                                <span class="input-unit">seconds</span>
-                            </div>
-                            <p class="input-hint">Duration of bell sound (1-30 seconds)</p>
+                        <div class="form-group">
+                            <label for="bellDuration">Bell Duration (seconds)</label>
+                            <input type="number" id="bellDuration" min="1" max="30" value="5" required>
                         </div>
-                        
                         <div class="form-actions">
-                            <button type="button" class="btn secondary-btn cancel-btn">
-                                Cancel
-                            </button>
-                            <button type="submit" class="btn primary-btn save-btn">
-                                <i class="fas fa-save"></i>
-                                Save Period
-                            </button>
+                            <button type="button" class="btn cancel-btn">Cancel</button>
+                            <button type="submit" class="btn save-btn">Save Period</button>
                         </div>
                     </form>
                 </div>
             </div>
         </div>
-
-        <!-- Notification Container -->
-        <div id="notificationContainer" class="notification-container"></div>
     </div>
 
     <script src="script.js"></script>
 </body>
+
 </html>

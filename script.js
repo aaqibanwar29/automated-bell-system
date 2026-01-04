@@ -1,129 +1,78 @@
-// Configuration - Enhanced with professional settings
+// Configuration
 const CONFIG = {
-    APP_NAME: 'Smart Bell System',
-    VERSION: '2.1.4',
     MQTT_BROKER: 'your-instance.hivemq.cloud',
     MQTT_PORT: 8883,
     MQTT_TOPICS: {
         SCHEDULE_UPDATE: 'bell/schedule/update',
         RING_NOW: 'bell/ring/now',
-        STATUS: 'bell/status/update',
-        SYSTEM_HEALTH: 'bell/system/health'
+        STATUS: 'bell/status'
     },
-    API_URL: '/.netlify/functions',
-    REFRESH_INTERVAL: 30000, // 30 seconds
-    BELL_VALIDATION: {
-        MIN_DURATION: 1,
-        MAX_DURATION: 30,
-        MIN_TIME_GAP: 300 // 5 minutes between bells
-    }
+    API_URL: '/.netlify/functions'
 };
 
-// Global State Management
-const AppState = {
-    user: null,
-    mqttClient: null,
-    isExamMode: false,
-    expandedDay: null,
-    daysSchedule: {
-        "Monday": { enabled: false, periods: [] },
-        "Tuesday": { enabled: false, periods: [] },
-        "Wednesday": { enabled: false, periods: [] },
-        "Thursday": { enabled: false, periods: [] },
-        "Friday": { enabled: false, periods: [] },
-        "Saturday": { enabled: false, periods: [] },
-        "Sunday": { enabled: false, periods: [] },
-        "Exam Day": { enabled: false, periods: [] }
-    },
-    lastBellTimestamp: null,
-    systemStatus: {
-        wifi: 'connected',
-        mqtt: 'connected',
-        lastSync: null,
-        nextBell: null
-    }
+// Global Variables
+let mqttClient = null;
+let schedule = [];
+let user = null;
+let daysSchedule = {
+    "Monday": { enabled: false, periods: [] },
+    "Tuesday": { enabled: false, periods: [] },
+    "Wednesday": { enabled: false, periods: [] },
+    "Thursday": { enabled: false, periods: [] },
+    "Friday": { enabled: false, periods: [] },
+    "Saturday": { enabled: false, periods: [] },
+    "Sunday": { enabled: false, periods: [] },
+    "Exam Day": { enabled: false, periods: [] }
 };
+let isExamMode = false;
+let expandedDay = null;
 
-// Initialize Application
+// Initialize the application
 document.addEventListener('DOMContentLoaded', function () {
-    console.log(`${CONFIG.APP_NAME} v${CONFIG.VERSION} initializing...`);
-    initializeApplication();
+    initNetlifyIdentity();
+    setupEventListeners();
+    updateCurrentTime();
+    setInterval(updateCurrentTime, 1000);
 });
 
-async function initializeApplication() {
-    try {
-        initNetlifyIdentity();
-        setupEventListeners();
-        initializeUI();
-        startSystemTimers();
-        
-        console.log('Application initialized successfully');
-        showSystemNotification('System ready', 'System initialized successfully', 'success');
-    } catch (error) {
-        console.error('Initialization error:', error);
-        showSystemNotification('Initialization Error', 'Failed to initialize application', 'error');
-    }
-}
-
-// Netlify Identity Management
+// Netlify Identity Setup
 function initNetlifyIdentity() {
     if (window.netlifyIdentity) {
         window.netlifyIdentity.on('init', user => {
             if (user) {
-                handleUserLogin(user);
+                handleLogin(user);
             }
         });
 
-        window.netlifyIdentity.on('login', handleUserLogin);
-        window.netlifyIdentity.on('logout', handleUserLogout);
-        window.netlifyIdentity.on('error', error => {
-            console.error('Netlify Identity Error:', error);
-            showSystemNotification('Authentication Error', 'Please try logging in again', 'error');
-        });
+        window.netlifyIdentity.on('login', handleLogin);
+        window.netlifyIdentity.on('logout', handleLogout);
     }
 
-    // Check for existing session
-    const currentUser = netlifyIdentity?.currentUser();
+    // Check if user is already logged in
+    const currentUser = netlifyIdentity.currentUser();
     if (currentUser) {
-        handleUserLogin(currentUser);
+        handleLogin(currentUser);
     }
 }
 
-function handleUserLogin(userData) {
-    if (!userData) return;
-    
-    AppState.user = userData;
-    console.log(`User logged in: ${userData.email}`);
-    
-    // Update UI
+function handleLogin(userData) {
+    user = userData;
     document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('dashboard').style.display = 'flex';
-    
-    // Initialize dashboard
+    document.getElementById('dashboard').style.display = 'block';
     connectToMQTT();
     loadSchedule();
-    updateDashboardWelcome();
-    
-    showSystemNotification('Welcome Back', `Logged in as ${userData.email}`, 'success');
 }
 
-function handleUserLogout() {
-    console.log('User logged out');
-    AppState.user = null;
-    
-    // Clean up connections
-    if (AppState.mqttClient && AppState.mqttClient.connected) {
-        AppState.mqttClient.end();
-    }
-    
-    // Reset UI
+function handleLogout() {
+    user = null;
     document.getElementById('loginScreen').style.display = 'block';
     document.getElementById('dashboard').style.display = 'none';
-    
-    showSystemNotification('Logged Out', 'You have been successfully logged out', 'info');
+    if (mqttClient && mqttClient.connected) {
+        mqttClient.end();
+    }
 }
 
-// Event Listeners Setup
+// Event Listeners
 function setupEventListeners() {
     // Login Button
     document.getElementById('googleLogin')?.addEventListener('click', () => {
@@ -132,618 +81,358 @@ function setupEventListeners() {
 
     // Logout Button
     document.getElementById('logoutBtn')?.addEventListener('click', () => {
-        if (confirm('Are you sure you want to log out of the system?')) {
-            netlifyIdentity.logout();
-        }
+        netlifyIdentity.logout();
     });
 
-    // Manual Bell Ring
+    // Add Period Button
+    document.getElementById('addPeriodBtn')?.addEventListener('click', () => {
+        document.getElementById('addPeriodModal').style.display = 'flex';
+    });
+
+    // Ring Now Button
     document.getElementById('ringNowBtn')?.addEventListener('click', ringBellNow);
 
-    // Duration Slider Sync
-    const durationSlider = document.getElementById('durationSlider');
-    const manualDuration = document.getElementById('manualDuration');
-    
-    if (durationSlider && manualDuration) {
-        durationSlider.addEventListener('input', (e) => {
-            manualDuration.value = e.target.value;
+    // Modal Close Buttons
+    document.querySelectorAll('.close, .cancel-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.getElementById('addPeriodModal').style.display = 'none';
+            document.getElementById('periodForm').reset();
         });
-        
-        manualDuration.addEventListener('input', (e) => {
-            const value = Math.min(Math.max(e.target.value, 1), 30);
-            durationSlider.value = value;
-            e.target.value = value;
-        });
-    }
-
-    // Modal Management
-    document.querySelectorAll('.modal-close, .cancel-btn').forEach(btn => {
-        btn.addEventListener('click', closePeriodModal);
     });
 
     // Period Form Submission
-    document.getElementById('periodForm')?.addEventListener('submit', handlePeriodSave);
+    document.getElementById('periodForm')?.addEventListener('submit', savePeriod);
 
-    // Schedule Mode Tabs
-    document.querySelectorAll('.mode-tab').forEach(tab => {
-        tab.addEventListener('click', (e) => {
-            const mode = e.currentTarget.dataset.mode;
-            switchScheduleMode(mode);
+    // Close modal when clicking outside
+    window.addEventListener('click', (e) => {
+        const modal = document.getElementById('addPeriodModal');
+        if (e.target === modal) {
+            modal.style.display = 'none';
+            document.getElementById('periodForm').reset();
+        }
+    });
+
+    // Mode selector
+    document.querySelectorAll('input[name="scheduleMode"]').forEach(radio => {
+        radio.addEventListener('change', async (e) => {
+            if (e.target.value === 'exam') {
+                isExamMode = true;
+                await toggleDay('Exam Day', true);
+            } else {
+                isExamMode = false;
+                await toggleDay('Exam Day', false);
+            }
         });
     });
 
-    // Toggle All Days
-    document.getElementById('toggleAllBtn')?.addEventListener('click', toggleAllDays);
+    // Toggle all days
+    document.getElementById('toggleAllBtn')?.addEventListener('click', async () => {
+        const allEnabled = Object.keys(daysSchedule).every(day => daysSchedule[day].enabled);
 
-    // Clear All Periods
-    document.getElementById('clearAllBtn')?.addEventListener('click', clearAllPeriods);
-
-    // Close modal on outside click
-    window.addEventListener('click', (e) => {
-        if (e.target.classList.contains('modal-overlay')) {
-            closePeriodModal();
-        }
+        Object.keys(daysSchedule).forEach(async (dayName) => {
+            if (dayName !== 'Exam Day') {
+                await toggleDay(dayName, !allEnabled);
+            }
+        });
     });
 
-    // Keyboard shortcuts
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            closePeriodModal();
-        }
-        if (e.ctrlKey && e.key === 'r' && AppState.user) {
-            e.preventDefault();
-            ringBellNow();
+    // Clear all periods
+    document.getElementById('clearAllBtn')?.addEventListener('click', async () => {
+        if (confirm('Are you sure you want to clear all periods?')) {
+            Object.keys(daysSchedule).forEach(dayName => {
+                daysSchedule[dayName].periods = [];
+                updateDayCard(dayName);
+            });
+            await clearDatabaseAndUpdateSchedule();
+            showNotification('All periods cleared', 'success');
         }
     });
 }
 
-// MQTT Connection Management
+// MQTT Connection
 function connectToMQTT() {
+    // For production, use a proper MQTT library with WebSocket support
+    // This is a simplified version - in real implementation, use Paho MQTT or similar
+
     console.log('Connecting to MQTT broker...');
-    updateSystemStatus('mqtt', 'connecting');
-    
-    // Simulated connection - Replace with actual MQTT implementation
+    updateConnectionStatus('connecting');
+
+    // Simulated connection - replace with actual MQTT implementation
     setTimeout(() => {
-        updateSystemStatus('mqtt', 'connected');
+        updateConnectionStatus('connected');
         simulateMQTTConnection();
-        showSystemNotification('MQTT Connected', 'Successfully connected to MQTT broker', 'success');
-    }, 1500);
+    }, 1000);
 }
 
 function simulateMQTTConnection() {
-    // Simulate real-time updates
+    // This simulates MQTT messages - replace with actual MQTT client
     setInterval(() => {
-        const statuses = ['connected', 'disconnected', 'bell_triggered'];
+        // Simulate status updates
+        const statuses = ['online', 'offline', 'bell_rang'];
         const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
-        
-        updateSystemStatus('mqtt', randomStatus);
-        
-        if (randomStatus === 'bell_triggered') {
+
+        if (randomStatus === 'bell_rang') {
             updateLastBellTime();
-            showSystemNotification('Bell Activated', 'Bell was triggered remotely', 'info');
         }
-    }, 15000);
+
+        updateMQTTStatus(randomStatus);
+    }, 10000);
 }
 
 // Schedule Management
+// Load schedule from database
 async function loadSchedule() {
     try {
-        console.log('Loading schedule from database...');
-        updateSystemStatus('lastSync', 'syncing');
-        
         const response = await fetch(`${CONFIG.API_URL}/getSchedule`);
-        
-        if (!response.ok) {
-            throw new Error(`Server returned ${response.status}`);
-        }
-        
         const result = await response.json();
-        
-        if (result.schedule?.periods) {
-            resetScheduleState();
-            
-            // Process schedule data
+
+        if (result.schedule && result.schedule.periods) {
+            // Reset days schedule
+            Object.keys(daysSchedule).forEach(dayName => {
+                daysSchedule[dayName].periods = [];
+                daysSchedule[dayName].enabled = false;
+            });
+
+            // Group periods by day
             result.schedule.periods.forEach(period => {
-                if (AppState.daysSchedule[period.day]) {
-                    AppState.daysSchedule[period.day].periods.push(period);
-                    AppState.daysSchedule[period.day].enabled = true;
+                if (daysSchedule[period.day]) {
+                    daysSchedule[period.day].periods.push(period);
+                    daysSchedule[period.day].enabled = true;
                 }
             });
-            
-            // Check for exam mode
-            AppState.isExamMode = result.schedule.periods.some(p => p.day === 'Exam Day');
-            
-            // Update UI
-            renderDaysList();
+
+            // Check if in exam mode
+            isExamMode = result.schedule.periods.some(p => p.day === 'Exam Day');
+
+            // Initialize UI
+            initializeDays();
             updatePeriodsCount();
             calculateNextBell();
-            
-            console.log(`Schedule loaded: ${result.schedule.periods.length} periods`);
-            showSystemNotification('Schedule Loaded', 
-                `Loaded ${result.schedule.periods.length} periods`, 'success');
         }
-        
-        updateSystemStatus('lastSync', new Date().toISOString());
-        
+
     } catch (error) {
         console.error('Error loading schedule:', error);
-        showSystemNotification('Schedule Error', 
-            'Failed to load schedule. Using default configuration.', 'error');
-        
-        // Initialize with empty schedule
-        renderDaysList();
+        // Initialize with empty days
+        initializeDays();
     }
 }
 
-function renderDaysList() {
+function renderSchedule() {
     const scheduleList = document.getElementById('scheduleList');
-    if (!scheduleList) return;
-    
     scheduleList.innerHTML = '';
-    
-    // Create day cards
-    Object.keys(AppState.daysSchedule).forEach(dayName => {
-        const dayCard = createDayCard(dayName);
-        scheduleList.appendChild(dayCard);
-    });
-    
-    // Update mode display
-    updateModeDisplay();
-}
 
-function createDayCard(dayName) {
-    const day = AppState.daysSchedule[dayName];
-    const periodCount = day.periods.length;
-    const isExpanded = AppState.expandedDay === dayName;
-    const isExamDay = dayName === 'Exam Day';
-    
-    const dayCard = document.createElement('div');
-    dayCard.className = `day-card ${day.enabled ? 'active' : ''} ${isExamDay && AppState.isExamMode ? 'exam-mode' : ''} ${isExpanded ? 'day-expanded' : ''}`;
-    dayCard.id = `day-${dayName.replace(/\s+/g, '-').toLowerCase()}`;
-    
-    dayCard.innerHTML = `
-        <div class="day-header" onclick="toggleDayExpansion('${dayName}')">
-            <div class="day-info">
-                <i class="fas fa-chevron-right day-icon"></i>
-                <span class="day-title">${dayName}</span>
-                <span class="period-count">${periodCount} period${periodCount !== 1 ? 's' : ''}</span>
-            </div>
-            <div class="day-controls">
-                <label class="toggle-switch">
-                    <input type="checkbox" ${day.enabled ? 'checked' : ''} 
-                           onchange="toggleDayState('${dayName}', this.checked)">
-                    <span class="toggle-slider"></span>
-                </label>
-                <button class="add-period-btn" onclick="openAddPeriodModal('${dayName}')">
-                    <i class="fas fa-plus"></i>
-                </button>
-            </div>
-        </div>
-        <div class="periods-container">
-            ${renderPeriodsForDay(dayName)}
-        </div>
-    `;
-    
-    return dayCard;
-}
-
-function renderPeriodsForDay(dayName) {
-    const periods = AppState.daysSchedule[dayName].periods;
-    
-    if (periods.length === 0) {
-        return '<div class="period-item"><div class="period-info"><p>No periods configured</p></div></div>';
-    }
-    
-    return periods.map((period, index) => `
-        <div class="period-item">
-            <div class="period-info">
-                <h4>${period.name || `Period ${index + 1}`}</h4>
-                <div class="period-time">
-                    <i class="far fa-clock"></i> ${formatTime(period.startTime)} - ${formatTime(period.endTime)}
-                    <span class="duration">(${period.duration}s)</span>
+    schedule.forEach((period, index) => {
+        const periodElement = document.createElement('div');
+        periodElement.className = 'schedule-item';
+        periodElement.innerHTML = `
+            <div class="schedule-info">
+                <h3>${period.name || `Period ${index + 1}`}</h3>
+                <div class="schedule-time">
+                    <i class="far fa-clock"></i> ${period.startTime} - ${period.endTime}
+                    <span class="duration">(${period.duration}s bell)</span>
                 </div>
             </div>
-            <div class="period-actions">
-                <button class="delete-period-btn" onclick="deletePeriodFromDay('${dayName}', ${index})">
+            <div class="schedule-actions">
+                <button class="btn edit-btn" onclick="editPeriod(${index})">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn delete-btn" onclick="deletePeriod(${index})">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
-        </div>
-    `).join('');
-}
-
-// Schedule Mode Management
-function switchScheduleMode(mode) {
-    if (mode === 'exam' && !AppState.isExamMode) {
-        if (confirm('Switch to Exam Mode? This will disable all regular days.')) {
-            AppState.isExamMode = true;
-            enableExamMode();
-            showSystemNotification('Exam Mode Activated', 'Regular days disabled', 'warning');
-        }
-    } else if (mode === 'regular' && AppState.isExamMode) {
-        AppState.isExamMode = false;
-        disableExamMode();
-        showSystemNotification('Regular Mode Activated', 'Exam day disabled', 'success');
-    }
-    
-    updateModeDisplay();
-}
-
-function enableExamMode() {
-    Object.keys(AppState.daysSchedule).forEach(dayName => {
-        if (dayName !== 'Exam Day') {
-            AppState.daysSchedule[dayName].enabled = false;
-        }
+        `;
+        scheduleList.appendChild(periodElement);
     });
-    AppState.daysSchedule['Exam Day'].enabled = true;
-    renderDaysList();
-    updateScheduleInDatabase();
 }
 
-function disableExamMode() {
-    AppState.daysSchedule['Exam Day'].enabled = false;
-    renderDaysList();
-    updateScheduleInDatabase();
-}
-
-// Day Management
-function toggleDayExpansion(dayName) {
-    const dayCard = document.getElementById(`day-${dayName.replace(/\s+/g, '-').toLowerCase()}`);
-    
-    if (AppState.expandedDay === dayName) {
-        dayCard.classList.remove('day-expanded');
-        AppState.expandedDay = null;
-    } else {
-        if (AppState.expandedDay) {
-            const prevCard = document.getElementById(`day-${AppState.expandedDay.replace(/\s+/g, '-').toLowerCase()}`);
-            prevCard.classList.remove('day-expanded');
-        }
-        dayCard.classList.add('day-expanded');
-        AppState.expandedDay = dayName;
-    }
-}
-
-async function toggleDayState(dayName, enabled) {
-    if (AppState.isExamMode && dayName !== 'Exam Day' && enabled) {
-        showSystemNotification('Mode Conflict', 
-            'Cannot enable regular days in Exam Mode. Disable Exam Day first.', 'error');
-        
-        // Revert checkbox
-        const checkbox = document.querySelector(`#day-${dayName.replace(/\s+/g, '-').toLowerCase()} input[type="checkbox"]`);
-        checkbox.checked = false;
-        return;
-    }
-    
-    if (dayName === 'Exam Day' && enabled) {
-        // Enable exam mode
-        await enableExamMode();
-        return;
-    }
-    
-    AppState.daysSchedule[dayName].enabled = enabled;
-    updateDayCard(dayName);
-    
-    if (enabled) {
-        await updateScheduleInDatabase();
-    } else {
-        await clearDayFromDatabase(dayName);
-    }
-    
-    showSystemNotification('Schedule Updated', 
-        `${dayName} ${enabled ? 'enabled' : 'disabled'}`, 'success');
-}
-
-async function toggleAllDays() {
-    const allEnabled = Object.keys(AppState.daysSchedule).every(day => 
-        day === 'Exam Day' ? true : AppState.daysSchedule[day].enabled
-    );
-    
-    const daysToToggle = Object.keys(AppState.daysSchedule).filter(day => day !== 'Exam Day');
-    
-    await Promise.all(daysToToggle.map(async (dayName) => {
-        AppState.daysSchedule[dayName].enabled = !allEnabled;
-        updateDayCard(dayName);
-    }));
-    
-    await updateScheduleInDatabase();
-    
-    showSystemNotification('Schedule Updated', 
-        `${allEnabled ? 'Disabled' : 'Enabled'} all days`, 'success');
-}
-
-async function clearAllPeriods() {
-    if (!confirm('Are you sure you want to clear ALL periods from ALL days? This action cannot be undone.')) {
-        return;
-    }
-    
-    try {
-        Object.keys(AppState.daysSchedule).forEach(dayName => {
-            AppState.daysSchedule[dayName].periods = [];
-        });
-        
-        await clearDatabaseAndUpdateSchedule();
-        renderDaysList();
-        
-        showSystemNotification('Schedule Cleared', 'All periods removed successfully', 'success');
-    } catch (error) {
-        console.error('Error clearing periods:', error);
-        showSystemNotification('Clear Failed', 'Failed to clear periods', 'error');
-    }
-}
-
-// Period Management
-function openAddPeriodModal(dayName) {
-    document.getElementById('addPeriodModal').style.display = 'flex';
-    document.getElementById('selectedDay').value = dayName;
-    document.getElementById('periodDay').value = dayName;
-    
-    // Set focus to first input
-    setTimeout(() => {
-        document.getElementById('periodName').focus();
-    }, 100);
-}
-
-function closePeriodModal() {
-    document.getElementById('addPeriodModal').style.display = 'none';
-    document.getElementById('periodForm').reset();
-}
-
-async function handlePeriodSave(e) {
+async function savePeriod(e) {
     e.preventDefault();
-    
+
     const dayName = document.getElementById('periodDay').value;
-    if (!dayName) {
-        showSystemNotification('Validation Error', 'Please select a day', 'error');
-        return;
-    }
-    
     const period = {
-        name: document.getElementById('periodName').value.trim(),
+        name: document.getElementById('periodName').value,
         day: dayName,
         startTime: document.getElementById('startTime').value,
         endTime: document.getElementById('endTime').value,
-        duration: parseInt(document.getElementById('bellDuration').value) || 5
+        duration: parseInt(document.getElementById('bellDuration').value)
     };
-    
-    // Validation
+
+    // Validate time
     if (period.startTime >= period.endTime) {
-        showSystemNotification('Time Error', 'End time must be after start time', 'error');
+        showNotification('End time must be after start time', 'error');
         return;
     }
-    
-    if (period.duration < 1 || period.duration > 30) {
-        showSystemNotification('Duration Error', 'Bell duration must be between 1-30 seconds', 'error');
-        return;
-    }
-    
-    // Add period
-    AppState.daysSchedule[dayName].periods.push(period);
+
+    // Add period to the day
+    daysSchedule[dayName].periods.push(period);
+
+    // Update the day card
     updateDayCard(dayName);
-    
+
     // Save to database
-    if (AppState.daysSchedule[dayName].enabled) {
+    if (daysSchedule[dayName].enabled) {
         await updateScheduleInDatabase();
     }
-    
-    closePeriodModal();
-    showSystemNotification('Period Saved', 'Period added successfully', 'success');
-}
 
-async function deletePeriodFromDay(dayName, periodIndex) {
-    if (!confirm('Delete this period?')) {
-        return;
-    }
-    
-    AppState.daysSchedule[dayName].periods.splice(periodIndex, 1);
-    updateDayCard(dayName);
-    
-    if (AppState.daysSchedule[dayName].enabled) {
-        await updateScheduleInDatabase();
-    }
-    
-    showSystemNotification('Period Deleted', 'Period removed successfully', 'success');
-}
+    // Close modal and reset form
+    document.getElementById('addPeriodModal').style.display = 'none';
+    document.getElementById('periodForm').reset();
 
-// Manual Bell Control
-async function ringBellNow() {
-    const duration = parseInt(document.getElementById('manualDuration').value) || 5;
-    
-    if (duration < 1 || duration > 30) {
-        showSystemNotification('Invalid Duration', 'Please enter a duration between 1-30 seconds', 'error');
-        return;
-    }
-    
-    try {
-        showSystemNotification('Activating Bell', 'Sending bell activation command...', 'info');
-        
-        const response = await fetch(`${CONFIG.API_URL}/ringNow`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${AppState.user?.token?.access_token}`
-            },
-            body: JSON.stringify({ 
-                duration,
-                timestamp: new Date().toISOString(),
-                triggeredBy: AppState.user?.email || 'manual'
-            })
-        });
-        
-        if (!response.ok) {
-            throw new Error(`Server responded with ${response.status}`);
-        }
-        
-        updateLastBellTime();
-        showSystemNotification('Bell Activated', `Bell rung for ${duration} seconds`, 'success');
-        
-    } catch (error) {
-        console.error('Error ringing bell:', error);
-        showSystemNotification('Activation Failed', 'Failed to ring bell. Please try again.', 'error');
-    }
-}
-
-// Database Operations
-async function updateScheduleInDatabase() {
-    const periods = getAllEnabledPeriods();
-    
-    if (periods.length === 0) {
-        showSystemNotification('No Periods', 'No enabled periods to save', 'warning');
-        return;
-    }
-    
-    try {
-        const response = await fetch(`${CONFIG.API_URL}/scheduleQueue`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${AppState.user?.token?.access_token}`
-            },
-            body: JSON.stringify({
-                periods: periods,
-                timestamp: new Date().toISOString(),
-                mode: AppState.isExamMode ? 'exam' : 'regular',
-                totalPeriods: periods.length
-            })
-        });
-        
-        if (response.status === 401 || response.status === 403) {
-            showSystemNotification('Session Expired', 'Please log in again', 'error');
-            netlifyIdentity.logout();
-            return;
-        }
-        
-        if (!response.ok) {
-            throw new Error('Failed to update schedule');
-        }
-        
-        console.log(`Schedule updated with ${periods.length} periods`);
-        
-        // Update ESP32
-        await sendScheduleToESP32();
-        
-    } catch (error) {
-        console.error('Error updating schedule:', error);
-        showSystemNotification('Update Failed', 'Failed to save schedule changes', 'error');
-    }
+    showNotification('Period saved successfully!', 'success');
 }
 
 async function sendScheduleToESP32() {
     try {
         const periods = getAllEnabledPeriods();
-        
-        // Simulated ESP32 update
-        console.log(`Sending ${periods.length} periods to ESP32...`);
-        
-        // In production, implement actual MQTT or HTTP call to ESP32
-        showSystemNotification('Schedule Sent', `Sent schedule to bell controller (${periods.length} periods)`, 'success');
-        
-    } catch (error) {
-        console.error('Error sending to ESP32:', error);
-        showSystemNotification('Sync Warning', 'Schedule saved but ESP32 sync failed', 'warning');
-    }
-}
 
-async function clearDatabaseAndUpdateSchedule() {
-    try {
-        const response = await fetch(`${CONFIG.API_URL}/clearSchedule`, {
+        const response = await fetch(`${CONFIG.API_URL}/scheduleQueue`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${AppState.user?.token?.access_token}`
+                'Authorization': `Bearer ${user.token.access_token}`
+            },
+            body: JSON.stringify({
+                periods: periods,
+                timestamp: new Date().toISOString(),
+                type: 'full_schedule_update'
+            })
+        });
+
+        if (response.status === 401 || response.status === 403) {
+            showNotification('Session expired. Please log in again.', 'error');
+            netlifyIdentity.logout();
+            return;
+        }
+
+        if (!response.ok) {
+            throw new Error('Failed to send schedule');
+        }
+
+        const result = await response.json();
+        console.log('✅ Schedule sent and stored:', result);
+        showNotification(`Schedule sent (${periods.length} periods)`, 'success');
+
+    } catch (error) {
+        console.error('Error sending schedule:', error);
+        showNotification('Failed to send schedule', 'error');
+    }
+}
+
+async function forceScheduleSync() {
+    try {
+        const response = await fetch(`${CONFIG.API_URL}/getSchedule`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${user.token.access_token}`
             }
         });
-        
-        if (!response.ok) {
-            throw new Error('Failed to clear schedule');
-        }
-        
-        await updateScheduleInDatabase();
-        
+
+        const result = await response.json();
+
+        if (!response.ok) throw new Error(result.error || 'Failed to sync schedule');
+
+        console.log('✅ Schedule synced from server:', result);
+        showNotification(`Schedule synced (${result.count} periods)`, 'success');
+
     } catch (error) {
-        console.error('Error clearing schedule:', error);
-        showSystemNotification('Clear Failed', 'Failed to clear schedule', 'error');
+        console.error('Error syncing schedule:', error);
+        showNotification('Failed to sync schedule', 'error');
     }
 }
 
-async function clearDayFromDatabase(dayName) {
+async function ringBellNow() {
+    const duration = parseInt(document.getElementById('manualDuration').value);
+
     try {
-        const response = await fetch(`${CONFIG.API_URL}/clearDay`, {
+        const response = await fetch(`${CONFIG.API_URL}/ringNow`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${AppState.user?.token?.access_token}`
+                'Authorization': `Bearer ${user.token.access_token}`
             },
-            body: JSON.stringify({ day: dayName })
+            body: JSON.stringify({ duration })
         });
-        
-        if (!response.ok) {
-            throw new Error('Failed to clear day');
-        }
-        
+
+        if (!response.ok) throw new Error('Failed to ring bell');
+
+        updateLastBellTime();
+        showNotification('Bell rung successfully!', 'success');
     } catch (error) {
-        console.error('Error clearing day:', error);
+        console.error('Error ringing bell:', error);
+        showNotification('Failed to ring bell', 'error');
     }
 }
 
 // Helper Functions
-function getAllEnabledPeriods() {
-    const allPeriods = [];
-    
-    Object.keys(AppState.daysSchedule).forEach(dayName => {
-        if (AppState.daysSchedule[dayName].enabled) {
-            AppState.daysSchedule[dayName].periods.forEach(period => {
-                allPeriods.push({
-                    ...period,
-                    day: dayName
-                });
-            });
-        }
+function updateCurrentTime() {
+    const now = new Date();
+    const timeString = now.toLocaleTimeString('en-US', {
+        hour12: true,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
     });
-    
-    return allPeriods;
+    document.getElementById('currentTime').textContent = timeString;
 }
 
-function resetScheduleState() {
-    Object.keys(AppState.daysSchedule).forEach(dayName => {
-        AppState.daysSchedule[dayName].periods = [];
-        AppState.daysSchedule[dayName].enabled = false;
-    });
-}
+function updateConnectionStatus(status) {
+    const statusElement = document.getElementById('connectionStatus');
+    const dotElement = document.querySelector('.status-dot');
 
-function updateDayCard(dayName) {
-    const dayCard = document.getElementById(`day-${dayName.replace(/\s+/g, '-').toLowerCase()}`);
-    const newDayCard = createDayCard(dayName);
-    
-    if (dayCard.classList.contains('day-expanded')) {
-        newDayCard.classList.add('day-expanded');
+    switch (status) {
+        case 'connected':
+            statusElement.textContent = 'Connected';
+            dotElement.className = 'status-dot online';
+            break;
+        case 'connecting':
+            statusElement.textContent = 'Connecting...';
+            dotElement.className = 'status-dot connecting';
+            break;
+        case 'disconnected':
+            statusElement.textContent = 'Disconnected';
+            dotElement.className = 'status-dot offline';
+            break;
     }
-    
-    dayCard.replaceWith(newDayCard);
-    updatePeriodsCount();
-    calculateNextBell();
 }
 
+function updateMQTTStatus(status) {
+    document.getElementById('mqttStatus').textContent = status;
+}
+
+function updateLastBellTime() {
+    const now = new Date();
+    const timeString = now.toLocaleTimeString('en-US', {
+        hour12: true,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+    document.getElementById('lastBellTime').textContent = timeString;
+}
+
+// Update periods count
 function updatePeriodsCount() {
-    const totalPeriods = Object.keys(AppState.daysSchedule).reduce((total, dayName) => {
-        return total + AppState.daysSchedule[dayName].periods.length;
+    const totalPeriods = Object.keys(daysSchedule).reduce((total, dayName) => {
+        return total + daysSchedule[dayName].periods.length;
     }, 0);
-    
+
     document.getElementById('periodsCount').textContent = totalPeriods;
 }
 
+// Calculate next bell considering day
 function calculateNextBell() {
     const now = new Date();
     const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' });
     const currentTime = now.getHours() * 60 + now.getMinutes();
-    
+
     let nextBell = null;
-    
-    // Check today's schedule
-    if (AppState.daysSchedule[currentDay]?.enabled) {
-        for (const period of AppState.daysSchedule[currentDay].periods) {
+
+    // Check today's schedule if enabled
+    if (daysSchedule[currentDay]?.enabled) {
+        for (const period of daysSchedule[currentDay].periods) {
             const [startHour, startMinute] = period.startTime.split(':').map(Number);
             const startTime = startHour * 60 + startMinute;
-            
+
             if (startTime > currentTime) {
                 if (!nextBell || startTime < nextBell.startTime) {
                     nextBell = {
@@ -755,24 +444,24 @@ function calculateNextBell() {
             }
         }
     }
-    
-    // Check upcoming days
+
+    // If no bell today, check next enabled day
     if (!nextBell) {
-        const days = Object.keys(AppState.daysSchedule);
+        const days = Object.keys(daysSchedule);
         const currentDayIndex = days.indexOf(currentDay);
-        
+
         for (let i = 1; i <= days.length; i++) {
             const nextDayIndex = (currentDayIndex + i) % days.length;
             const nextDay = days[nextDayIndex];
-            
-            if (AppState.daysSchedule[nextDay]?.enabled && AppState.daysSchedule[nextDay].periods.length > 0) {
-                const earliestPeriod = AppState.daysSchedule[nextDay].periods.reduce((earliest, period) => {
+
+            if (daysSchedule[nextDay]?.enabled && daysSchedule[nextDay].periods.length > 0) {
+                const earliestPeriod = daysSchedule[nextDay].periods.reduce((earliest, period) => {
                     const [startHour, startMinute] = period.startTime.split(':').map(Number);
                     const startTime = startHour * 60 + startMinute;
-                    return !earliest || startTime < earliest.startTime ? 
+                    return !earliest || startTime < earliest.startTime ?
                         { time: period.startTime, startTime: startTime, day: nextDay } : earliest;
                 }, null);
-                
+
                 if (earliestPeriod) {
                     nextBell = earliestPeriod;
                     break;
@@ -780,200 +469,391 @@ function calculateNextBell() {
             }
         }
     }
-    
-    const nextBellElement = document.getElementById('nextBellTime');
+
     if (nextBell) {
-        nextBellElement.innerHTML = `<span class="next-bell">${nextBell.day} at ${formatTime(nextBell.time)}</span>`;
+        document.getElementById('nextBellTime').textContent =
+            `${nextBell.day} ${nextBell.time}`;
     } else {
-        nextBellElement.innerHTML = '<span class="next-bell">No schedule configured</span>';
+        document.getElementById('nextBellTime').textContent = 'No schedule';
     }
 }
 
-function updateLastBellTime() {
-    const now = new Date();
-    AppState.lastBellTimestamp = now;
-    
-    const timeString = now.toLocaleTimeString('en-US', {
-        hour12: true,
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-    });
-    
-    document.getElementById('lastBellTime').textContent = timeString;
+function editPeriod(index) {
+    const period = schedule[index];
+
+    document.getElementById('periodName').value = period.name || '';
+    document.getElementById('startTime').value = period.startTime;
+    document.getElementById('endTime').value = period.endTime;
+    document.getElementById('bellDuration').value = period.duration;
+
+    // Remove the old period
+    schedule.splice(index, 1);
+
+    document.getElementById('addPeriodModal').style.display = 'flex';
 }
 
-function updateCurrentTime() {
-    const now = new Date();
-    const timeString = now.toLocaleTimeString('en-US', {
-        hour12: true,
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-    });
-    
-    const timeElement = document.getElementById('currentTime');
-    if (timeElement) {
-        timeElement.textContent = timeString;
-    }
-}
+async function deletePeriod(index) {
+    if (confirm('Are you sure you want to delete this period?')) {
+        const period = schedule[index];
 
-function updateSystemStatus(component, status) {
-    AppState.systemStatus[component] = status;
-    
-    switch (component) {
-        case 'wifi':
-            document.getElementById('wifiStatus').innerHTML = 
-                `<span class="status-badge ${status === 'connected' ? 'connected' : 'disconnected'}">${status}</span>`;
-            break;
-        case 'mqtt':
-            document.getElementById('mqttStatus').innerHTML = 
-                `<span class="status-badge ${status === 'connected' ? 'connected' : 'disconnected'}">${status}</span>`;
-            document.getElementById('connectionStatus').textContent = 
-                status === 'connected' ? 'System Online' : 'System Offline';
-            break;
-    }
-}
+        try {
+            // First get the latest schedule to see the structure
+            const getResponse = await fetch(`${CONFIG.API_URL}/getSchedule`);
+            const latestSchedule = await getResponse.json();
 
-function updateModeDisplay() {
-    const modeDescription = document.getElementById('modeDescription');
-    const modeTabs = document.querySelectorAll('.mode-tab');
-    
-    if (AppState.isExamMode) {
-        modeDescription.textContent = 'Exam day schedule configuration';
-        modeTabs.forEach(tab => {
-            tab.classList.toggle('active', tab.dataset.mode === 'exam');
-        });
-    } else {
-        modeDescription.textContent = 'Regular school day schedule configuration';
-        modeTabs.forEach(tab => {
-            tab.classList.toggle('active', tab.dataset.mode === 'regular');
-        });
-    }
-}
+            console.log('Latest schedule from DB:', latestSchedule);
 
-function initializeUI() {
-    // Set initial time
-    updateCurrentTime();
-    
-    // Update mode display
-    updateModeDisplay();
-    
-    // Initialize tooltips
-    initializeTooltips();
-}
+            // Use startTime for deletion
+            const response = await fetch(`${CONFIG.API_URL}/scheduleQueue`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${user.token.access_token}`
+                },
+                body: JSON.stringify({
+                    startTime: period.startTime
+                })
+            });
 
-function startSystemTimers() {
-    // Update time every second
-    setInterval(updateCurrentTime, 1000);
-    
-    // Refresh schedule every 30 seconds
-    setInterval(() => {
-        if (AppState.user) {
-            calculateNextBell();
+            if (response.ok) {
+                schedule.splice(index, 1);
+                localStorage.setItem('bellSchedule', JSON.stringify(schedule));
+                renderSchedule();
+                updatePeriodsCount();
+                calculateNextBell();
+                showNotification('Period deleted successfully!', 'success');
+                await sendScheduleToESP32();
+            } else {
+                throw new Error('Delete failed');
+            }
+
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('Delete failed. Using startTime: ' + period.startTime, 'error');
         }
-    }, 30000);
-    
-    // Check system health every minute
-    setInterval(checkSystemHealth, 60000);
-}
-
-function checkSystemHealth() {
-    const now = new Date();
-    const lastSync = AppState.systemStatus.lastSync;
-    
-    if (lastSync && (now - new Date(lastSync)) > 300000) { // 5 minutes
-        showSystemNotification('Sync Warning', 'Schedule sync is outdated', 'warning');
     }
 }
 
-function formatTime(timeString) {
-    if (!timeString) return '';
-    
-    const [hours, minutes] = timeString.split(':');
-    const hour = parseInt(hours);
-    const period = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour % 12 || 12;
-    
-    return `${displayHour}:${minutes} ${period}`;
-}
-
-function showSystemNotification(title, message, type = 'info') {
-    const notificationContainer = document.getElementById('notificationContainer');
-    
+function showNotification(message, type = 'info') {
+    // Create notification element
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
-    notification.innerHTML = `
-        <i class="fas fa-${getNotificationIcon(type)}"></i>
-        <div class="notification-content">
-            <strong>${title}</strong>
-            <p>${message}</p>
-        </div>
+    notification.textContent = message;
+
+    // Add styles
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 25px;
+        background: ${type === 'success' ? '#4cc9f0' : '#f72585'};
+        color: white;
+        border-radius: 8px;
+        z-index: 10000;
+        animation: slideIn 0.3s ease;
     `;
-    
-    notificationContainer.appendChild(notification);
-    
-    // Auto-remove after 5 seconds
+
+    document.body.appendChild(notification);
+
+    // Remove after 3 seconds
     setTimeout(() => {
-        notification.style.animation = 'notificationSlideOut 0.3s ease';
+        notification.style.animation = 'slideOut 0.3s ease';
         setTimeout(() => {
-            notification.remove();
+            document.body.removeChild(notification);
         }, 300);
-    }, 5000);
+    }, 3000);
 }
 
-function getNotificationIcon(type) {
-    switch (type) {
-        case 'success': return 'check-circle';
-        case 'error': return 'exclamation-circle';
-        case 'warning': return 'exclamation-triangle';
-        default: return 'info-circle';
+// Add CSS for notifications
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    
+    @keyframes slideOut {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(100%); opacity: 0; }
+    }
+`;
+document.head.appendChild(style);
+
+// Initialize days in schedule list
+function initializeDays() {
+    const scheduleList = document.getElementById('scheduleList');
+    scheduleList.innerHTML = '';
+
+    Object.keys(daysSchedule).forEach(dayName => {
+        const dayCard = createDayCard(dayName);
+        scheduleList.appendChild(dayCard);
+    });
+}
+
+// Create day card HTML
+function createDayCard(dayName) {
+    const day = daysSchedule[dayName];
+    const periodCount = day.periods.length;
+
+    const dayCard = document.createElement('div');
+    dayCard.className = `day-card ${day.enabled ? 'active' : ''} ${isExamMode && dayName === 'Exam Day' ? 'exam-mode' : ''}`;
+    dayCard.id = `day-${dayName.replace(/\s+/g, '-').toLowerCase()}`;
+
+    dayCard.innerHTML = `
+        <div class="day-header" onclick="toggleDayExpansion('${dayName}')">
+            <div class="day-info">
+                <i class="ri-arrow-right-s-fill day-icon"></i>
+                <span class="day-title">${dayName}</span>
+                <span class="period-count">${periodCount} period${periodCount !== 1 ? 's' : ''}</span>
+            </div>
+            <div class="day-toggle">
+                <label class="toggle-switch">
+                    <input type="checkbox" ${day.enabled ? 'checked' : ''} 
+                           onchange="toggleDay('${dayName}', this.checked)">
+                    <span class="toggle-slider"></span>
+                </label>
+                <button class="add-period-btn" onclick="openAddPeriodModal('${dayName}')">
+                    <i class="ri-apps-2-add-fill"></i>
+                </button>
+            </div>
+        </div>
+        <div class="periods-container">
+            ${renderPeriodsForDay(dayName)}
+        </div>
+    `;
+
+    return dayCard;
+}
+
+// Render periods for a specific day
+function renderPeriodsForDay(dayName) {
+    const periods = daysSchedule[dayName].periods;
+    if (periods.length === 0) {
+        return '<div class="no-periods">No periods added</div>';
+    }
+
+    return periods.map((period, index) => `
+        <div class="period-item" data-period-index="${index}">
+            <div class="period-info">
+                <h4>${period.name || `Period ${index + 1}`}</h4>
+                <div class="period-time">
+                    <i class="far fa-clock"></i> ${period.startTime} - ${period.endTime}
+                    <span class="duration">(${period.duration}s bell)</span>
+                </div>
+            </div>
+            <div class="period-actions">
+                <button class="btn delete-period-btn" onclick="deletePeriodFromDay('${dayName}', ${index})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Toggle day expansion
+function toggleDayExpansion(dayName) {
+    const dayCard = document.getElementById(`day-${dayName.replace(/\s+/g, '-').toLowerCase()}`);
+
+    if (expandedDay === dayName) {
+        dayCard.classList.remove('day-expanded');
+        expandedDay = null;
+    } else {
+        // Collapse previously expanded day
+        if (expandedDay) {
+            const prevDayCard = document.getElementById(`day-${expandedDay.replace(/\s+/g, '-').toLowerCase()}`);
+            prevDayCard.classList.remove('day-expanded');
+        }
+
+        dayCard.classList.add('day-expanded');
+        expandedDay = dayName;
     }
 }
 
-function initializeTooltips() {
-    // Add CSS for tooltips
-    const tooltipCSS = `
-        .tooltip {
-            position: relative;
-            display: inline-block;
+// Toggle day on/off
+async function toggleDay(dayName, enabled) {
+    if (isExamMode && dayName !== 'Exam Day' && enabled) {
+        showNotification('Cannot enable regular days in Exam mode. Disable Exam Day first.', 'error');
+        document.querySelector(`#day-${dayName.replace(/\s+/g, '-').toLowerCase()} input[type="checkbox"]`).checked = false;
+        return;
+    }
+
+    if (dayName === 'Exam Day' && enabled) {
+        // Enable Exam Day mode - disable all other days
+        isExamMode = true;
+        Object.keys(daysSchedule).forEach(day => {
+            if (day !== 'Exam Day') {
+                daysSchedule[day].enabled = false;
+                updateDayCard(day);
+            }
+        });
+        daysSchedule['Exam Day'].enabled = true;
+        updateDayCard('Exam Day');
+        await clearDatabaseAndUpdateSchedule();
+    } else if (dayName === 'Exam Day' && !enabled) {
+        // Disable Exam Day mode
+        isExamMode = false;
+        daysSchedule['Exam Day'].enabled = false;
+        updateDayCard('Exam Day');
+        await clearDatabaseAndUpdateSchedule();
+    } else {
+        // Regular day toggle
+        daysSchedule[dayName].enabled = enabled;
+        updateDayCard(dayName);
+
+        if (enabled) {
+            await updateScheduleInDatabase();
+        } else {
+            await clearDayFromDatabase(dayName);
         }
-        .tooltip .tooltiptext {
-            visibility: hidden;
-            width: 200px;
-            background-color: var(--dark-gray);
-            color: var(--white);
-            text-align: center;
-            border-radius: var(--radius-sm);
-            padding: 0.5rem;
-            position: absolute;
-            z-index: 1;
-            bottom: 125%;
-            left: 50%;
-            transform: translateX(-50%);
-            opacity: 0;
-            transition: opacity 0.3s;
-            font-size: 0.875rem;
-        }
-        .tooltip:hover .tooltiptext {
-            visibility: visible;
-            opacity: 1;
-        }
-    `;
-    
-    const style = document.createElement('style');
-    style.textContent = tooltipCSS;
-    document.head.appendChild(style);
+    }
+
+    // Update mode selector
+    document.querySelector('input[name="scheduleMode"][value="exam"]').checked = isExamMode;
+    document.querySelector('input[name="scheduleMode"][value="regular"]').checked = !isExamMode;
 }
 
-// Global functions exposed for HTML event handlers
-window.toggleDayExpansion = toggleDayExpansion;
-window.toggleDayState = toggleDayState;
-window.openAddPeriodModal = openAddPeriodModal;
-window.deletePeriodFromDay = deletePeriodFromDay;
+// Open add period modal with selected day
+function openAddPeriodModal(dayName) {
+    document.getElementById('addPeriodModal').style.display = 'flex';
+    document.getElementById('selectedDay').value = dayName;
+    document.getElementById('periodDay').value = dayName;
+}
 
-// Export for debugging
-window.AppState = AppState;
-window.CONFIG = CONFIG;
+async function deletePeriodFromDay(dayName, periodIndex) {
+    if (confirm('Are you sure you want to delete this period?')) {
+        daysSchedule[dayName].periods.splice(periodIndex, 1);
+        updateDayCard(dayName);
 
-console.log('Smart Bell System Pro - All systems ready');
+        if (daysSchedule[dayName].enabled) {
+            await updateScheduleInDatabase();
+        }
+
+        showNotification('Period deleted successfully!', 'success');
+    }
+}
+
+// Update day card in UI
+function updateDayCard(dayName) {
+    const dayCard = document.getElementById(`day-${dayName.replace(/\s+/g, '-').toLowerCase()}`);
+    const newDayCard = createDayCard(dayName);
+
+    // Preserve expansion state
+    if (dayCard.classList.contains('day-expanded')) {
+        newDayCard.classList.add('day-expanded');
+    }
+
+    dayCard.replaceWith(newDayCard);
+}
+
+// Get all enabled periods
+function getAllEnabledPeriods() {
+    const allPeriods = [];
+
+    Object.keys(daysSchedule).forEach(dayName => {
+        if (daysSchedule[dayName].enabled && daysSchedule[dayName].periods.length > 0) {
+            daysSchedule[dayName].periods.forEach(period => {
+                allPeriods.push({
+                    ...period,
+                    day: dayName
+                });
+            });
+        }
+    });
+
+    return allPeriods;
+}
+
+// Clear database and update schedule
+async function clearDatabaseAndUpdateSchedule() {
+    try {
+        // Clear all schedules from database
+        const clearResponse = await fetch(`${CONFIG.API_URL}/clearSchedule`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${user.token.access_token}`
+            }
+        });
+
+        if (!clearResponse.ok) {
+            throw new Error('Failed to clear schedule');
+        }
+
+        // Update with current schedule
+        await updateScheduleInDatabase();
+
+    } catch (error) {
+        console.error('Error clearing schedule:', error);
+        showNotification('Failed to update schedule', 'error');
+    }
+}
+
+// Clear specific day from database
+async function clearDayFromDatabase(dayName) {
+    try {
+        const response = await fetch(`${CONFIG.API_URL}/clearDay`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${user.token.access_token}`
+            },
+            body: JSON.stringify({ day: dayName })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to clear day');
+        }
+
+        showNotification(`Cleared ${dayName} from schedule`, 'success');
+    } catch (error) {
+        console.error('Error clearing day:', error);
+    }
+}
+
+// Update schedule in database
+async function updateScheduleInDatabase() {
+    const periods = getAllEnabledPeriods();
+
+    if (periods.length === 0) {
+        showNotification('No enabled periods to save', 'warning');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${CONFIG.API_URL}/scheduleQueue`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${user.token.access_token}`
+            },
+            body: JSON.stringify({
+                periods: periods,
+                timestamp: new Date().toISOString(),
+                type: 'full_schedule_update',
+                mode: isExamMode ? 'exam' : 'regular'
+            })
+        });
+
+        if (response.status === 401 || response.status === 403) {
+            showNotification('Session expired. Please log in again.', 'error');
+            netlifyIdentity.logout();
+            return;
+        }
+
+        if (!response.ok) {
+            throw new Error('Failed to update schedule');
+        }
+
+        const result = await response.json();
+        console.log('✅ Schedule updated:', result);
+        showNotification(`Schedule updated (${periods.length} periods)`, 'success');
+
+        // Send to ESP32
+        await sendScheduleToESP32();
+
+    } catch (error) {
+        console.error('Error updating schedule:', error);
+        showNotification('Failed to update schedule', 'error');
+    }
+}
+
