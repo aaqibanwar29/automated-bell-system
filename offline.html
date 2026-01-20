@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline - Automated Bell System</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .offline-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+            text-align: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .offline-icon {
+            font-size: 80px;
+            margin-bottom: 30px;
+            color: #ff9a3c;
+        }
+        
+        .offline-title {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            color: white;
+        }
+        
+        .offline-message {
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+            max-width: 500px;
+            line-height: 1.6;
+            opacity: 0.9;
+        }
+        
+        .offline-actions {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .btn-retry {
+            background: #4cc9f0;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-retry:hover {
+            background: #3aa8d0;
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="offline-container">
+        <div class="offline-icon">
+            <i class="fas fa-wifi-slash"></i>
+        </div>
+        <h1 class="offline-title">You're Offline</h1>
+        <div class="offline-message">
+            The Bell System Manager requires an internet connection to synchronize schedules and manage the bell system. Please connect to Wi-Fi or cellular data to continue.
+        </div>
+        <div class="offline-actions">
+            <button class="btn-retry" onclick="window.location.reload()">
+                <i class="fas fa-redo"></i> Retry Connection
+            </button>
+            <button class="btn-retry" onclick="if(navigator.onLine) window.location.reload()">
+                <i class="fas fa-wifi"></i> Check Connection
+            </button>
+        </div>
+    </div>
+</body>
+</html>

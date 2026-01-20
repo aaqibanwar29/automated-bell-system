@@ -1,0 +1,85 @@
+{
+  "name": "Automated Bell System",
+  "short_name": "BellSystem",
+  "description": "Automated Bell System Management Admin Dashboard",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#4361ee",
+  "theme_color": "#3a0ca3",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png",
+      "sizes": "72x72",
+      "type": "image/png"
+    },
+    {
+      "src": "https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png",
+      "sizes": "96x96",
+      "type": "image/png"
+    },
+    {
+      "src": "https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png",
+      "sizes": "128x128",
+      "type": "image/png"
+    },
+    {
+      "src": "https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png",
+      "sizes": "144x144",
+      "type": "image/png"
+    },
+    {
+      "src": "https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png",
+      "sizes": "152x152",
+      "type": "image/png"
+    },
+    {
+      "src": "https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png",
+      "sizes": "384x384",
+      "type": "image/png"
+    },
+    {
+      "src": "https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    },
+    {
+      "src": "https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "shortcuts": [
+    {
+      "name": "Add New Period",
+      "short_name": "Add Period",
+      "description": "Add a new bell period",
+      "url": "/?add=true",
+      "icons": [{ "src": "https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Ring Bell Now",
+      "short_name": "Ring Bell",
+      "description": "Manually ring the bell",
+      "url": "/?ring=true",
+      "icons": [{ "src": "https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png", "sizes": "96x96" }]
+    }
+  ]
+}

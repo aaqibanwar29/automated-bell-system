@@ -857,3 +857,259 @@ async function updateScheduleInDatabase() {
     }
 }
 
+// ==============================================
+// PWA FUNCTIONALITY
+// ==============================================
+
+let deferredPrompt = null;
+let isPwaInstalled = false;
+let pwaPromptShown = false;
+
+// Check if PWA is already installed
+function checkPwaInstallation() {
+    // Check display mode
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+        isPwaInstalled = true;
+        console.log('📱 Running as PWA');
+        return true;
+    }
+
+    // Check if launched from home screen
+    if (window.navigator.standalone) {
+        isPwaInstalled = true;
+        console.log('📱 Running as iOS PWA');
+        return true;
+    }
+
+    return false;
+}
+
+// Handle beforeinstallprompt event
+window.addEventListener('beforeinstallprompt', (e) => {
+    console.log('📱 PWA Installation available');
+
+    // Prevent Chrome 67 and earlier from automatically showing the prompt
+    e.preventDefault();
+
+    // Stash the event so it can be triggered later
+    deferredPrompt = e;
+
+    // Check if we should show the prompt
+    const hasSeenPrompt = localStorage.getItem('pwaPromptShown');
+    const shouldShowPrompt = !hasSeenPrompt && !checkPwaInstalled();
+
+    if (shouldShowPrompt && !pwaPromptShown) {
+        // Wait a bit before showing prompt for better UX
+        setTimeout(() => {
+            showPwaInstallPrompt();
+        }, 2000);
+    }
+});
+
+// Show PWA installation prompt
+function showPwaInstallPrompt() {
+    if (!deferredPrompt || pwaPromptShown || checkPwaInstallation()) return;
+
+    const prompt = document.getElementById('pwaInstallPrompt');
+    prompt.style.display = 'flex';
+    pwaPromptShown = true;
+
+    // Mark as shown in localStorage
+    localStorage.setItem('pwaPromptShown', 'true');
+
+    console.log('📱 Showing PWA installation prompt');
+}
+
+// Hide PWA installation prompt
+function hidePwaInstallPrompt() {
+    const prompt = document.getElementById('pwaInstallPrompt');
+    prompt.style.display = 'none';
+}
+
+// Install PWA
+async function installPwa() {
+    if (!deferredPrompt) {
+        console.log('❌ No installation prompt available');
+        return;
+    }
+
+    try {
+        // Show the install prompt
+        deferredPrompt.prompt();
+
+        // Wait for the user to respond to the prompt
+        const { outcome } = await deferredPrompt.userChoice;
+
+        if (outcome === 'accepted') {
+            console.log('✅ PWA installation accepted');
+
+            // Show redirect notice
+            showRedirectNotice();
+
+            // Redirect to PWA after installation
+            setTimeout(() => {
+                window.location.href = window.location.origin;
+            }, 2000);
+
+        } else {
+            console.log('❌ PWA installation dismissed');
+        }
+
+        // Clear the deferredPrompt variable
+        deferredPrompt = null;
+
+        // Hide the prompt
+        hidePwaInstallPrompt();
+
+    } catch (error) {
+        console.error('❌ PWA installation error:', error);
+        hidePwaInstallPrompt();
+    }
+}
+
+// Show redirect notice
+function showRedirectNotice() {
+    const redirectNotice = document.getElementById('pwaRedirectNotice');
+    redirectNotice.style.display = 'flex';
+
+    // Hide after 3 seconds
+    setTimeout(() => {
+        redirectNotice.style.display = 'none';
+    }, 3000);
+}
+
+// Check if running in PWA and redirect if needed
+function checkAndRedirectToPwa() {
+    const isInBrowser = !window.matchMedia('(display-mode: standalone)').matches;
+    const hasPwaInstalled = localStorage.getItem('pwaInstalled') === 'true';
+
+    if (isInBrowser && hasPwaInstalled) {
+        console.log('📱 Redirecting to installed PWA');
+        showRedirectNotice();
+
+        // Try to open PWA
+        setTimeout(() => {
+            window.location.href = window.location.origin + '?pwa=true';
+        }, 1500);
+    }
+}
+
+// Handle app installed event
+window.addEventListener('appinstalled', (e) => {
+    console.log('🎉 PWA installed successfully');
+    isPwaInstalled = true;
+
+    // Mark as installed in localStorage
+    localStorage.setItem('pwaInstalled', 'true');
+
+    // Hide any prompts
+    hidePwaInstallPrompt();
+
+    // Show success message
+    showNotification('Bell System App installed successfully!', 'success');
+});
+
+// Offline detection
+function setupOfflineDetection() {
+    // Check initial status
+    if (!navigator.onLine) {
+        handleOffline();
+    }
+
+    // Listen for online/offline events
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+}
+
+function handleOffline() {
+    console.log('📴 Device is offline');
+
+    // Only redirect to offline page if not already there
+    if (!window.location.pathname.includes('offline.html')) {
+        window.location.href = '/offline.html';
+    }
+}
+
+function handleOnline() {
+    console.log('📱 Device is back online');
+
+    // If on offline page, redirect back
+    if (window.location.pathname.includes('offline.html')) {
+        window.location.href = '/';
+    }
+
+    // Reload schedule data
+    if (user) {
+        loadSchedule();
+    }
+}
+
+// Register service worker
+async function registerServiceWorker() {
+    if ('serviceWorker' in navigator) {
+        try {
+            const registration = await navigator.registerserviceWorker('/service-worker.js');
+            console.log('✅ Service Worker registered:', registration);
+
+            // Check for updates
+            registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                console.log('🔄 Service Worker update found');
+
+                newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        showNotification('New version available! Refresh to update.', 'info');
+                    }
+                });
+            });
+
+        } catch (error) {
+            console.error('❌ Service Worker registration failed:', error);
+        }
+    }
+}
+
+// Initialize PWA
+function initPwa() {
+    // Register service worker
+    registerServiceWorker();
+
+    // Check if PWA is installed
+    checkPwaInstallation();
+
+    // Setup offline detection
+    setupOfflineDetection();
+
+    // Setup PWA event listeners
+    setupPwaEventListeners();
+}
+
+// Setup PWA event listeners
+function setupPwaEventListeners() {
+    // Install button
+    document.getElementById('installPwaBtn')?.addEventListener('click', installPwa);
+
+    // Close prompt button
+    document.getElementById('closePwaPrompt')?.addEventListener('click', hidePwaInstallPrompt);
+
+    // Later button
+    document.getElementById('laterBtn')?.addEventListener('click', () => {
+        hidePwaInstallPrompt();
+        localStorage.setItem('pwaPromptShown', 'true');
+    });
+}
+
+// Update the existing initialize function
+document.addEventListener('DOMContentLoaded', function () {
+    // Initialize PWA first
+    initPwa();
+
+    // Then initialize the rest
+    initNetlifyIdentity();
+    setupEventListeners();
+    updateCurrentTime();
+    setInterval(updateCurrentTime, 1000);
+
+    // Check and redirect to PWA if needed
+    setTimeout(checkAndRedirectToPwa, 1000);
+});

@@ -2,9 +2,37 @@
 <html lang="en">
 
 <head>
+
+    <!-- PWA Meta Tags -->
+    <meta name="application-name" content="Automated Bell System">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="BellSystem">
+    <meta name="description" content="Automated Bell System Management">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="msapplication-config" content="/browserconfig.xml">
+    <meta name="msapplication-TileColor" content="#3a0ca3">
+    <meta name="msapplication-tap-highlight" content="no">
+    <meta name="theme-color" content="#3a0ca3">
+
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png">
+    <link rel="apple-touch-icon" sizes="167x167" href="https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png">
+    <link rel="shortcut icon" href="https://res.cloudinary.com/dwv5eykov/image/upload/v1768909518/favicon_mluyiy.ico">
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Automated School Bell System</title>
+    <title>Automated Bell Management Admin Dashboard</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
@@ -13,6 +41,58 @@
 </head>
 
 <body>
+
+    <!-- PWA Installation Prompt -->
+    <div id="pwaInstallPrompt" class="pwa-prompt">
+        <div class="pwa-prompt-content">
+            <div class="pwa-prompt-header">
+                <div class="pwa-icon">
+                    <i class="fas fa-bell"></i>
+                </div>
+                <h2>Install Bell System App</h2>
+                <button class="pwa-close-btn" id="closePwaPrompt">&times;</button>
+            </div>
+            <div class="pwa-prompt-body">
+                <p>Install the Bell System Manager as a standalone app for quick access and better experience.</p>
+                <div class="pwa-features">
+                    <div class="feature">
+                        <i class="fas fa-rocket"></i>
+                        <span>Faster Access</span>
+                    </div>
+                    <div class="feature">
+                        <i class="fas fa-desktop"></i>
+                        <span>Standalone App</span>
+                    </div>
+                    <div class="feature">
+                        <i class="fas fa-bolt"></i>
+                        <span>Quick Launch</span>
+                    </div>
+                </div>
+                <div class="pwa-app-info">
+                    <img src="https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png" alt="App Icon" class="app-icon">
+                    <div class="app-details">
+                        <h3>Automated Bell Management Admin Dashboard</h3>
+                        <p>Manage bell schedules easily</p>
+                    </div>
+                </div>
+            </div>
+            <div class="pwa-prompt-footer">
+                <button class="btn btn-secondary" id="laterBtn">Maybe Later</button>
+                <button class="btn btn-primary" id="installPwaBtn">
+                    <i class="fas fa-download"></i> Install App
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PWA Redirect Notice -->
+    <div id="pwaRedirectNotice" class="pwa-redirect">
+        <div class="redirect-content">
+            <i class="fas fa-external-link-alt"></i>
+            <p>Opening in installed app...</p>
+        </div>
+    </div>
+
     <div class="container">
         <!-- Login Screen -->
         <div id="loginScreen" class="screen">

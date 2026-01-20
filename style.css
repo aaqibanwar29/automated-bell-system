@@ -728,3 +728,261 @@ input:checked+.toggle-slider:before {
     background: rgba(247, 37, 133, 0.1);
     color: var(--danger-color);
 }
+
+/* ==============================================
+   PWA STYLES
+   ============================================== */
+
+/* PWA Installation Prompt */
+.pwa-prompt {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(5px);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.3s ease;
+}
+
+.pwa-prompt-content {
+    background: white;
+    border-radius: 20px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    animation: slideUp 0.4s ease;
+}
+
+.pwa-prompt-header {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    padding: 25px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+}
+
+.pwa-prompt-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    flex: 1;
+    text-align: center;
+}
+
+.pwa-icon {
+    font-size: 2.5rem;
+    margin-right: 15px;
+}
+
+.pwa-close-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 2rem;
+    cursor: pointer;
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background 0.3s ease;
+}
+
+.pwa-close-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.pwa-prompt-body {
+    padding: 25px;
+}
+
+.pwa-prompt-body p {
+    color: var(--gray-color);
+    line-height: 1.6;
+    margin-bottom: 25px;
+    text-align: center;
+}
+
+.pwa-features {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.feature {
+    text-align: center;
+    padding: 15px;
+    background: rgba(67, 97, 238, 0.05);
+    border-radius: 10px;
+    transition: transform 0.3s ease;
+}
+
+.feature:hover {
+    transform: translateY(-5px);
+}
+
+.feature i {
+    font-size: 1.5rem;
+    color: var(--primary-color);
+    margin-bottom: 8px;
+    display: block;
+}
+
+.feature span {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--dark-color);
+}
+
+.pwa-app-info {
+    display: flex;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 20px;
+    border: 2px dashed rgba(67, 97, 238, 0.1);
+}
+
+.app-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 15px;
+    margin-right: 15px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.app-details h3 {
+    margin: 0 0 5px 0;
+    color: var(--dark-color);
+    font-size: 1.1rem;
+}
+
+.app-details p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--gray-color);
+}
+
+.pwa-prompt-footer {
+    display: flex;
+    gap: 15px;
+    padding: 20px;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.pwa-prompt-footer .btn {
+    flex: 1;
+    padding: 12px;
+    font-weight: 600;
+}
+
+/* PWA Redirect Notice */
+.pwa-redirect {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    z-index: 10001;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+}
+
+.redirect-content {
+    text-align: center;
+    animation: pulse 2s infinite;
+}
+
+.redirect-content i {
+    font-size: 4rem;
+    color: var(--primary-color);
+    margin-bottom: 20px;
+}
+
+.redirect-content p {
+    font-size: 1.3rem;
+    color: var(--dark-color);
+    font-weight: 600;
+}
+
+/* Install Button Animation */
+@keyframes pulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(50px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* ==============================================
+   RESPONSIVE PWA STYLES
+   ============================================== */
+@media (max-width: 768px) {
+    .pwa-prompt-content {
+        width: 95%;
+        margin: 10px;
+    }
+
+    .pwa-features {
+        grid-template-columns: 1fr;
+    }
+
+    .feature {
+        padding: 12px;
+    }
+
+    .pwa-prompt-header {
+        padding: 20px;
+    }
+
+    .pwa-prompt-body {
+        padding: 20px;
+    }
+
+    .pwa-prompt-footer {
+        flex-direction: column;
+    }
+}

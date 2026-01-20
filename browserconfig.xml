@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<browserconfig>
+    <msapplication>
+        <tile>
+            <square70x70logo src="https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png"/>
+            <square150x150logo src="https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png"/>
+            <square310x310logo src="https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png"/>
+            <wide310x150logo src="https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png"/>
+            <TileColor>#3a0ca3</TileColor>
+            <TileImage src="https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png"/>
+        </tile>
+    </msapplication>
+</browserconfig>
