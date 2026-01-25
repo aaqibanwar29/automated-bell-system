@@ -896,7 +896,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
 
     // Check if we should show the prompt
     const hasSeenPrompt = localStorage.getItem('pwaPromptShown');
-    const shouldShowPrompt = !hasSeenPrompt && !checkPwaInstalled();
+    const shouldShowPrompt = !hasSeenPrompt && !checkPwaInstallation();
 
     if (shouldShowPrompt && !pwaPromptShown) {
         // Wait a bit before showing prompt for better UX
@@ -1048,24 +1048,26 @@ function handleOnline() {
 async function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
         try {
-            const registration = await navigator.registerserviceWorker('/service-worker.js');
+            const registration = await navigator.serviceWorker.register('/service-worker.js');
             console.log('✅ Service Worker registered:', registration);
-
+            
             // Check for updates
             registration.addEventListener('updatefound', () => {
                 const newWorker = registration.installing;
                 console.log('🔄 Service Worker update found');
-
+                
                 newWorker.addEventListener('statechange', () => {
                     if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                         showNotification('New version available! Refresh to update.', 'info');
                     }
                 });
             });
-
+            
         } catch (error) {
             console.error('❌ Service Worker registration failed:', error);
         }
+    } else {
+        console.log('ℹ️ Service Worker not supported in this browser');
     }
 }
 
