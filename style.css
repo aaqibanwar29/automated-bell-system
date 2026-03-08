@@ -252,7 +252,7 @@ main {
     border-bottom: 1px solid rgba(0, 0, 0, 0.05);
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
 }
 
 .card-header h2 {
@@ -268,6 +268,7 @@ main {
 .schedule-list {
     max-height: 400px;
     overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .schedule-list::-webkit-scrollbar {
@@ -534,7 +535,7 @@ main {
     font-weight: 500;
 }
 
-#periodDay select {
+select#periodDay {
     width: 100%;
     padding: 12px;
     border: 3px solid hsl(0, 0%, 100%, 0.3);
@@ -824,7 +825,7 @@ input:checked+.toggle-slider:before {
     display: flex;
     gap: 10px;
     justify-content: center;
-    margin-top: 10px;
+    margin-top: 20px;
 }
 
 .toggle-btn {
