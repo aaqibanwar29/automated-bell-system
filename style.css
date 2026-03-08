@@ -160,7 +160,7 @@ header {
 }
 
 .header-left h1 {
-    color: #707070;
+    color: #3e3e3e;
     font-size: 1.8rem;
 }
 
@@ -270,6 +270,24 @@ main {
     overflow-y: auto;
 }
 
+.schedule-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.schedule-list::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 5px;
+}
+
+.schedule-list::-webkit-scrollbar-thumb {
+    background: #ffffff;
+    border-radius: 5px;
+}
+
+.schedule-list::-webkit-scrollbar-thumb:hover {
+    background: #ffffff;
+}
+
 .schedule-item {
     background: rgba(67, 97, 238, 0.05);
     border-radius: 10px;
@@ -313,6 +331,10 @@ main {
 }
 
 .control-group input {
+    border: 3px solid hsl(0, 0%, 100%, 0.3);
+    background: hsl(0, 0%, 100%, 0.2);
+    backdrop-filter: blur(2px);
+    box-shadow: inset 0 0 8px 1px hsl(0, 0%, 100%, 0.5);
     width: 100%;
     padding: 12px;
     border: 2px solid rgba(0, 0, 0, 0.1);
@@ -426,6 +448,7 @@ main {
     box-shadow: inset 0 0 8px 1px hsl(0, 0%, 100%, 0.2);
     background: rgba(247, 37, 133, 0.2);
     color: #ff3131;
+    margin-left: 50px;
 }
 
 .logout-btn:hover {
@@ -447,7 +470,10 @@ main {
 }
 
 .modal-content {
-    background: white;
+    border: 3px solid hsl(0, 0%, 100%, 0.3);
+    background: hsl(0, 0%, 100%, 0.2);
+    backdrop-filter: blur(20px);
+    box-shadow: inset 0 0 8px 1px hsl(0, 0%, 100%, 0.5);
     border-radius: var(--border-radius);
     width: 90%;
     max-width: 500px;
@@ -477,10 +503,11 @@ main {
 .close {
     font-size: 28px;
     cursor: pointer;
-    color: var(--gray-color);
+    color: #000000;
 }
 
 .close:hover {
+    transform: scale(1px);
     color: var(--dark-color);
 }
 
@@ -507,10 +534,24 @@ main {
     font-weight: 500;
 }
 
-.form-group input {
+#periodDay select {
     width: 100%;
     padding: 12px;
-    border: 2px solid rgba(0, 0, 0, 0.1);
+    border: 3px solid hsl(0, 0%, 100%, 0.3);
+    background: hsl(0, 0%, 100%, 0.2);
+    backdrop-filter: blur(2px);
+    box-shadow: inset 0 0 8px 1px hsl(0, 0%, 100%, 0.5);
+    border-radius: 8px;
+    font-size: 1rem;
+}
+
+.form-group input {
+    border: 3px solid hsl(0, 0%, 100%, 0.3);
+    background: hsl(0, 0%, 100%, 0.2);
+    backdrop-filter: blur(2px);
+    box-shadow: inset 0 0 8px 1px hsl(0, 0%, 100%, 0.5);
+    width: 100%;
+    padding: 12px;
     border-radius: 8px;
     font-size: 1rem;
 }
@@ -574,7 +615,10 @@ main {
 
 /* Days styling */
 .day-card {
-    background: white;
+    border: 3px solid hsl(0, 0%, 100%, 0.3);
+    background: hsl(0, 0%, 100%, 0.2);
+    backdrop-filter: blur(2px);
+    box-shadow: inset 0 0 8px 1px hsl(0, 0%, 100%, 0.5);
     border-radius: 10px;
     margin-bottom: 15px;
     border: 2px solid rgba(67, 97, 238, 0.1);
@@ -759,22 +803,38 @@ input:checked+.toggle-slider:before {
 
 .mode-option input[type="radio"] {
     margin: 0;
+    width: 20px;
+    height: 20px;
+
+}
+
+.no-periods {
+    font-weight: 400;
+    border-radius: 40px;
+    border: none;
+    background: rgba(76, 201, 240, 0.30);
+    padding: 5px 15px 5px 15px;
+    margin-bottom: 20px;
+    margin-left: 30px;
+    margin-right: 30px;
 }
 
 /* Header actions */
 .header-actions {
     display: flex;
     gap: 10px;
+    justify-content: center;
+    margin-top: 10px;
 }
 
 .toggle-btn {
     background: rgba(76, 201, 240, 0.1);
-    color: var(--success-color);
+    color: #0050ff;
 }
 
 .clear-btn {
     background: rgba(247, 37, 133, 0.1);
-    color: var(--danger-color);
+    color: #ff0000;
 }
 
 /* ==============================================

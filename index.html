@@ -17,17 +17,23 @@
     <meta name="theme-color" content="#3a0ca3">
 
     <!-- Apple Touch Icons -->
-    <link rel="apple-touch-icon" href="https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png">
-    <link rel="apple-touch-icon" sizes="152x152" href="https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png">
-    <link rel="apple-touch-icon" sizes="167x167" href="https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png">
+    <link rel="apple-touch-icon"
+        href="https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png">
+    <link rel="apple-touch-icon" sizes="152x152"
+        href="https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png">
+    <link rel="apple-touch-icon" sizes="180x180"
+        href="https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png">
+    <link rel="apple-touch-icon" sizes="167x167"
+        href="https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png">
 
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json">
 
     <!-- Favicon -->
-    <link rel="icon" type="image/png" sizes="32x32" href="https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png">
+    <link rel="icon" type="image/png" sizes="32x32"
+        href="https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png">
+    <link rel="icon" type="image/png" sizes="16x16"
+        href="https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png">
     <link rel="shortcut icon" href="https://res.cloudinary.com/dwv5eykov/image/upload/v1768909518/favicon_mluyiy.ico">
 
     <meta charset="UTF-8">
@@ -53,7 +59,8 @@
                 <button class="pwa-close-btn" id="closePwaPrompt">&times;</button>
             </div>
             <div class="pwa-prompt-body">
-                <p>Install the Bell Management Admin Dashboard as a standalone app for quick access and better experience.</p>
+                <p>Install the Bell Management Admin Dashboard as a standalone app for quick access and better
+                    experience.</p>
                 <div class="pwa-features">
                     <div class="feature">
                         <i class="fas fa-rocket"></i>
@@ -69,7 +76,8 @@
                     </div>
                 </div>
                 <div class="pwa-app-info">
-                    <img src="https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png" alt="App Icon" class="app-icon">
+                    <img src="https://res.cloudinary.com/dwv5eykov/image/upload/v1768908595/app_icon_ftwi7s.png"
+                        alt="App Icon" class="app-icon">
                     <div class="app-details">
                         <h3>Automated Bell Management Admin Dashboard</h3>
                         <p>Manage bell schedules and special Schedules easily</p>
@@ -168,12 +176,12 @@
                     <!-- Manual Controls -->
                     <div class="card controls-card">
                         <div class="card-header">
-                            <h2><i class="fas fa-sliders-h"></i> Manual Controls</h2>
+                            <h2><i class="fas fa-sliders-h"></i> Manual Control</h2>
                         </div>
                         <div class="card-body">
                             <div class="control-group">
-                                <label for="manualDuration">Bell Duration (seconds)</label>
-                                <input type="number" id="manualDuration" min="1" max="30" value="5">
+                                <label for="manualDuration">Ring Duration (s)</label>
+                                <input type="number" id="manualDuration" min="1" max="10" value="5">
                             </div>
                             <button id="ringNowBtn" class="btn ring-btn">
                                 <i class="fas fa-play"></i> Ring Bell Now
@@ -207,6 +215,10 @@
                                 <span class="status-label">Periods Today:</span>
                                 <span class="status-value" id="periodsCount">0</span>
                             </div>
+                            <div class="status-item">
+                                <span class="status-label">Processor:</span>
+                                <span class="status-value">ESP32 by Expressif</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -234,12 +246,12 @@
                                 <option value="Friday">Friday</option>
                                 <option value="Saturday">Saturday</option>
                                 <option value="Sunday">Sunday</option>
-                                <option value="Exam Day">Exam Day</option>
+                                <option value="Exam Day">Special Schedule</option>
                             </select>
                         </div>
                         <div class="form-group">
                             <label for="periodName">Period Name</label>
-                            <input type="text" id="periodName" placeholder="e.g., Period 1, Lunch Break">
+                            <input type="text" id="periodName" placeholder="e.g., Assembly, 1st Period">
                         </div>
                         <div class="time-group">
                             <div class="form-group">
@@ -253,11 +265,11 @@
                         </div>
                         <div class="form-group">
                             <label for="bellDuration">Bell Duration (seconds)</label>
-                            <input type="number" id="bellDuration" min="1" max="30" value="5" required>
+                            <input type="number" id="bellDuration" min="1" max="10" value="3" required>
                         </div>
                         <div class="form-actions">
                             <button type="button" class="btn cancel-btn">Cancel</button>
-                            <button type="submit" class="btn save-btn">Save Period</button>
+                            <button type="submit" class="btn save-btn">Add Period</button>
                         </div>
                     </form>
                 </div>
